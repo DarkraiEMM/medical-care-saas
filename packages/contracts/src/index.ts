@@ -91,15 +91,30 @@ export const vitalSignSchema = z.discriminatedUnion("type", [
 ]);
 export type VitalSignInput = z.infer<typeof vitalSignSchema>;
 
-export const createServiceRecordSchema = z.object({
-  periodId: z.string().min(1),
-  occurredAt: z.iso.datetime(),
-  participantIds: z.array(z.string().min(1)).min(1),
-  serviceItemVersionIds: z.array(z.string().min(1)).min(1),
-  log: z.string().trim().min(10).max(3000),
-  stages: z.array(serviceStageSchema),
-  vitalSigns: z.array(vitalSignSchema).default([]),
-});
+export const createServiceRecordSchema = z
+  .object({
+    periodId: z.string().min(1),
+    occurredAt: z.iso.datetime({ offset: true }),
+    startedAt: z.iso.datetime({ offset: true }),
+    endedAt: z.iso.datetime({ offset: true }),
+    participantIds: z.array(z.string().min(1)).min(1),
+    serviceItemVersionIds: z.array(z.string().min(1)).min(1),
+    log: z.string().trim().min(10).max(3000),
+    stages: z
+      .array(serviceStageSchema)
+      .length(3)
+      .refine((stages) => new Set(stages).size === 3, "前中后三阶段不能重复"),
+    stageNotes: z.object({
+      BEFORE: z.string().trim().min(2).max(1000),
+      DURING: z.string().trim().min(2).max(1000),
+      AFTER: z.string().trim().min(2).max(1000),
+    }),
+    vitalSigns: z.array(vitalSignSchema).default([]),
+  })
+  .refine((input) => new Date(input.endedAt) > new Date(input.startedAt), {
+    path: ["endedAt"],
+    message: "结束时间必须晚于开始时间",
+  });
 export type CreateServiceRecordInput = z.infer<
   typeof createServiceRecordSchema
 >;

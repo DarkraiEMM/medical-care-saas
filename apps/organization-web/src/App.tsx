@@ -36,6 +36,19 @@ type ServicePeriodApiRecord = {
   totalCents: number;
 };
 
+type ServiceRecordApiEntry = {
+  id: string;
+  periodId: string;
+  status: "DRAFT" | "SUBMITTED" | "RETURNED" | "APPROVED" | "ARCHIVED";
+  occurredAt: string;
+  startedAt: string;
+  endedAt: string;
+  participantIds: string[];
+  serviceItemVersionIds: string[];
+  log: string;
+  stageNotes: { BEFORE: string; DURING: string; AFTER: string };
+};
+
 type ElderApiRecord = {
   id: string;
   archiveNo: string;
@@ -77,6 +90,18 @@ const periodStatusLabels = {
   IN_SERVICE: "服务中",
   READY_FOR_REVIEW: "待审核",
   RETURNED: "已退回",
+} as const;
+
+const virtualStaff = {
+  "staff-lz-001": "刘阿姨（模拟）",
+  "staff-lz-002": "赵阿姨（模拟）",
+} as const;
+
+const virtualServiceItems = {
+  "item-room-cleaning": "助洁 · 居室清洁",
+  "item-home-cooking": "助餐 · 上门做饭",
+  "item-blood-pressure": "健康管理 · 测血压",
+  "item-walking-company": "助行 · 陪同散步",
 } as const;
 
 const navigation = [
@@ -122,6 +147,14 @@ export function App() {
   const [isPeriodLoading, setIsPeriodLoading] = useState(false);
   const [isPeriodSaving, setIsPeriodSaving] = useState(false);
   const [periodError, setPeriodError] = useState("");
+  const [selectedPeriod, setSelectedPeriod] =
+    useState<ServicePeriodApiRecord | null>(null);
+  const [serviceRecords, setServiceRecords] = useState<ServiceRecordApiEntry[]>(
+    [],
+  );
+  const [isRecordLoading, setIsRecordLoading] = useState(false);
+  const [isRecordSaving, setIsRecordSaving] = useState(false);
+  const [recordError, setRecordError] = useState("");
 
   useEffect(() => {
     async function loadElders() {
@@ -192,6 +225,9 @@ export function App() {
     setSelectedElder(elder);
     setPeriods([]);
     setPeriodError("");
+    setSelectedPeriod(null);
+    setServiceRecords([]);
+    setRecordError("");
     setIsPeriodOpen(true);
     setIsPeriodLoading(true);
     try {
@@ -208,6 +244,117 @@ export function App() {
       setPeriodError("无法读取该档案的月度服务周期。");
     } finally {
       setIsPeriodLoading(false);
+    }
+  }
+
+  async function openServiceRecords(period: ServicePeriodApiRecord) {
+    setSelectedPeriod(period);
+    setServiceRecords([]);
+    setRecordError("");
+    setIsRecordLoading(true);
+    try {
+      const response = await fetch(
+        `${apiBaseUrl}/organization/service-periods/${period.id}/records`,
+        { headers: developmentHeaders },
+      );
+      if (!response.ok) throw new Error(`HTTP_${response.status}`);
+      const result = (await response.json()) as {
+        data: ServiceRecordApiEntry[];
+      };
+      setServiceRecords(result.data);
+    } catch {
+      setRecordError("无法读取该周期的服务记录。");
+    } finally {
+      setIsRecordLoading(false);
+    }
+  }
+
+  async function createServiceRecord(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedPeriod) return;
+    const form = new FormData(event.currentTarget);
+    const serviceDate = String(form.get("serviceDate") ?? "");
+    const startTime = String(form.get("startTime") ?? "");
+    const endTime = String(form.get("endTime") ?? "");
+    const participantIds = form.getAll("participantIds").map(String);
+    const serviceItemVersionIds = form
+      .getAll("serviceItemVersionIds")
+      .map(String);
+    const stageNotes = {
+      BEFORE: String(form.get("beforeNote") ?? "").trim(),
+      DURING: String(form.get("duringNote") ?? "").trim(),
+      AFTER: String(form.get("afterNote") ?? "").trim(),
+    };
+    const log = String(form.get("serviceLog") ?? "").trim();
+    if (
+      !serviceDate ||
+      !startTime ||
+      !endTime ||
+      participantIds.length === 0 ||
+      serviceItemVersionIds.length === 0 ||
+      !stageNotes.BEFORE ||
+      !stageNotes.DURING ||
+      !stageNotes.AFTER ||
+      log.length < 10
+    ) {
+      setRecordError("请完整填写日期时间、人员、项目、前中后记录和结果总结。");
+      return;
+    }
+    const startedAt = `${serviceDate}T${startTime}:00+08:00`;
+    const endedAt = `${serviceDate}T${endTime}:00+08:00`;
+
+    setIsRecordSaving(true);
+    setRecordError("");
+    try {
+      const response = await fetch(
+        `${apiBaseUrl}/organization/service-periods/${selectedPeriod.id}/records`,
+        {
+          method: "POST",
+          headers: developmentHeaders,
+          body: JSON.stringify({
+            occurredAt: startedAt,
+            startedAt,
+            endedAt,
+            participantIds,
+            serviceItemVersionIds,
+            log,
+            stages: ["BEFORE", "DURING", "AFTER"],
+            stageNotes,
+            vitalSigns: [],
+          }),
+        },
+      );
+      if (!response.ok) {
+        const problem = (await response.json()) as { message?: string };
+        setRecordError(
+          typeof problem.message === "string"
+            ? problem.message
+            : "服务记录保存失败。",
+        );
+        return;
+      }
+      const result = (await response.json()) as {
+        data: { record: ServiceRecordApiEntry; completedCount: number };
+      };
+      setServiceRecords((current) => [result.data.record, ...current]);
+      const updatedPeriod: ServicePeriodApiRecord = {
+        ...selectedPeriod,
+        completedRecordCount: result.data.completedCount,
+        status: "IN_SERVICE",
+      };
+      setSelectedPeriod(updatedPeriod);
+      setPeriods((current) =>
+        current.map((period) =>
+          period.id === updatedPeriod.id ? updatedPeriod : period,
+        ),
+      );
+      setSaveNotice(
+        `${serviceDate} 服务记录已保存，当前周期共 ${result.data.completedCount} 条。`,
+      );
+    } catch {
+      setRecordError("服务记录保存失败，请确认本地 API 已启动。");
+    } finally {
+      setIsRecordSaving(false);
     }
   }
 
@@ -602,9 +749,212 @@ export function App() {
                       这是早期演示汇总；对应的逐条服务日志尚未建立。
                     </small>
                   ) : null}
+                  <button
+                    className="period-record-action"
+                    type="button"
+                    onClick={() => void openServiceRecords(period)}
+                  >
+                    查看并录入服务记录
+                  </button>
                 </article>
               ))}
             </section>
+
+            {selectedPeriod ? (
+              <section className="record-workspace" aria-label="逐条服务记录">
+                <div className="period-section-title">
+                  <h3>
+                    {selectedPeriod.yearMonth} · 第 {selectedPeriod.revision} 版
+                  </h3>
+                  <span>逐条服务记录</span>
+                </div>
+                {isRecordLoading ? <p>正在读取服务记录……</p> : null}
+                {!isRecordLoading && serviceRecords.length === 0 ? (
+                  <p className="empty-period">当前版本尚无逐条服务记录。</p>
+                ) : null}
+                <div className="service-record-list">
+                  {serviceRecords.map((record) => (
+                    <article className="service-record-card" key={record.id}>
+                      <header>
+                        <strong>
+                          {new Date(record.startedAt).toLocaleString("zh-CN", {
+                            year: "numeric",
+                            month: "2-digit",
+                            day: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            hour12: false,
+                            timeZone: "Asia/Shanghai",
+                          })}
+                        </strong>
+                        <mark>草稿</mark>
+                      </header>
+                      <p>{record.log}</p>
+                      <small>
+                        人员：
+                        {record.participantIds
+                          .map(
+                            (id) =>
+                              virtualStaff[id as keyof typeof virtualStaff] ??
+                              id,
+                          )
+                          .join("、")}
+                      </small>
+                      <small>
+                        项目：
+                        {record.serviceItemVersionIds
+                          .map(
+                            (id) =>
+                              virtualServiceItems[
+                                id as keyof typeof virtualServiceItems
+                              ] ?? id,
+                          )
+                          .join("、")}
+                      </small>
+                      <dl className="stage-summary">
+                        <div>
+                          <dt>服务前</dt>
+                          <dd>{record.stageNotes.BEFORE}</dd>
+                        </div>
+                        <div>
+                          <dt>服务中</dt>
+                          <dd>{record.stageNotes.DURING}</dd>
+                        </div>
+                        <div>
+                          <dt>服务后</dt>
+                          <dd>{record.stageNotes.AFTER}</dd>
+                        </div>
+                      </dl>
+                    </article>
+                  ))}
+                </div>
+
+                {selectedPeriod.id.startsWith("period-demo-") ||
+                !["DRAFT", "IN_SERVICE"].includes(selectedPeriod.status) ? (
+                  <p className="record-readonly-note">
+                    该版本只用于历史查看，不能继续新增服务记录。请在待开始或服务中的新版本录入。
+                  </p>
+                ) : (
+                  <form className="record-form" onSubmit={createServiceRecord}>
+                    <div className="period-section-title">
+                      <h3>新建服务记录</h3>
+                      <span>虚拟信息</span>
+                    </div>
+                    <div className="record-time-grid">
+                      <label>
+                        <span>服务日期</span>
+                        <input
+                          name="serviceDate"
+                          type="date"
+                          defaultValue={`${selectedPeriod.yearMonth}-08`}
+                        />
+                      </label>
+                      <label>
+                        <span>开始时间</span>
+                        <input
+                          name="startTime"
+                          type="time"
+                          defaultValue="09:00"
+                        />
+                      </label>
+                      <label>
+                        <span>结束时间</span>
+                        <input
+                          name="endTime"
+                          type="time"
+                          defaultValue="10:00"
+                        />
+                      </label>
+                    </div>
+
+                    <fieldset>
+                      <legend>参与人员（可多选）</legend>
+                      <div className="choice-grid">
+                        {Object.entries(virtualStaff).map(
+                          ([id, label], index) => (
+                            <label key={id}>
+                              <input
+                                type="checkbox"
+                                name="participantIds"
+                                value={id}
+                                defaultChecked={index === 0}
+                              />
+                              <span>{label}</span>
+                            </label>
+                          ),
+                        )}
+                      </div>
+                    </fieldset>
+
+                    <fieldset>
+                      <legend>具体服务项目（可多选）</legend>
+                      <div className="choice-grid">
+                        {Object.entries(virtualServiceItems).map(
+                          ([id, label], index) => (
+                            <label key={id}>
+                              <input
+                                type="checkbox"
+                                name="serviceItemVersionIds"
+                                value={id}
+                                defaultChecked={index === 0}
+                              />
+                              <span>{label}</span>
+                            </label>
+                          ),
+                        )}
+                      </div>
+                    </fieldset>
+
+                    <label>
+                      <span>服务前记录</span>
+                      <textarea
+                        name="beforeNote"
+                        rows={2}
+                        placeholder="例如：确认老人状态、环境和约定项目"
+                      />
+                    </label>
+                    <label>
+                      <span>服务中记录</span>
+                      <textarea
+                        name="duringNote"
+                        rows={2}
+                        placeholder="例如：实际完成了哪些具体操作"
+                      />
+                    </label>
+                    <label>
+                      <span>服务后记录</span>
+                      <textarea
+                        name="afterNote"
+                        rows={2}
+                        placeholder="例如：检查结果、老人反馈和离场状态"
+                      />
+                    </label>
+                    <label>
+                      <span>服务结果总结</span>
+                      <textarea
+                        name="serviceLog"
+                        rows={3}
+                        placeholder="至少10个字，说明本次服务结果"
+                      />
+                    </label>
+                    {recordError ? (
+                      <p className="form-error" role="alert">
+                        {recordError}
+                      </p>
+                    ) : null}
+                    <div className="drawer-actions">
+                      <button
+                        className="primary-action"
+                        type="submit"
+                        disabled={isRecordSaving}
+                      >
+                        {isRecordSaving ? "正在保存……" : "保存服务记录"}
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </section>
+            ) : null}
 
             <form className="period-form" onSubmit={createServicePeriod}>
               <div className="period-section-title">

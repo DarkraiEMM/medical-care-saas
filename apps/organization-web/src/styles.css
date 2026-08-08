@@ -22,7 +22,9 @@ body {
   min-height: 100vh;
 }
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 button {
@@ -421,7 +423,7 @@ dd {
 }
 
 .period-drawer {
-  width: min(570px, 100vw);
+  width: min(680px, 100vw);
 }
 
 .period-history {
@@ -473,6 +475,143 @@ dd {
   padding-top: 8px;
   border-top: 1px dashed var(--line);
   color: #8a5b1d;
+}
+
+.period-record-action {
+  padding: 8px 10px;
+  border: 1px solid var(--moss);
+  background: transparent;
+  color: var(--moss);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.record-workspace {
+  margin-top: 18px;
+  padding: 22px 0;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.service-record-list {
+  display: grid;
+  gap: 10px;
+}
+
+.service-record-card {
+  display: grid;
+  gap: 9px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  background: #fbf8f1;
+}
+
+.service-record-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.service-record-card p {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.service-record-card > small {
+  color: var(--muted);
+}
+
+.stage-summary {
+  margin-top: 4px;
+  border-top: 1px dashed var(--line);
+}
+
+.stage-summary div {
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  justify-content: initial;
+}
+
+.stage-summary dd {
+  font-weight: 400;
+  text-align: left;
+}
+
+.record-form {
+  display: grid;
+  gap: 17px;
+  margin-top: 22px;
+  padding: 18px;
+  background: #eee9df;
+}
+
+.record-readonly-note {
+  margin: 18px 0 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--amber);
+  background: #f1e5cc;
+  color: #6f4c1e;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.record-form > label,
+.record-time-grid label {
+  display: grid;
+  gap: 8px;
+}
+
+.record-form label > span,
+.record-time-grid label > span,
+.record-form legend {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.record-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  outline: none;
+  resize: vertical;
+  background: #fbf8f1;
+  color: var(--ink);
+}
+
+.record-time-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1fr;
+  gap: 10px;
+}
+
+.record-form fieldset {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+}
+
+.record-form legend {
+  padding: 0 5px;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px 12px;
+}
+
+.choice-grid label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+}
+
+.choice-grid input {
+  width: 16px;
+  height: 16px;
 }
 
 .period-progress b {
