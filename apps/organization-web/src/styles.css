@@ -325,6 +325,23 @@ dd {
   font-size: 13px;
 }
 
+.load-error {
+  margin: 18px 0 -6px;
+  padding: 11px 14px;
+  border-left: 3px solid var(--alert);
+  background: #f3ddd8;
+  color: var(--alert);
+  font-size: 13px;
+}
+
+.table-message {
+  margin: 0;
+  padding: 28px 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .drawer-backdrop {
   position: fixed;
   z-index: 20;
@@ -429,6 +446,11 @@ dd {
   border: 1px solid var(--line);
   background: transparent;
   cursor: pointer;
+}
+
+.drawer-actions button:disabled {
+  cursor: wait;
+  opacity: 0.58;
 }
 
 @media (max-width: 1200px) {

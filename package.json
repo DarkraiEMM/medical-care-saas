@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "pnpm -r --if-present build",
+    "dev:local": "node scripts/dev-local.mjs",
     "dev:api": "pnpm --filter @care/api dev",
     "dev:web": "pnpm --filter @care/organization-web dev",
     "format": "prettier --write .",
