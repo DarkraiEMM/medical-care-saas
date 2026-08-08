@@ -16,9 +16,23 @@ type ElderRow = {
   name: string;
   archiveNo: string;
   serviceMode: string;
+  serviceModeCode: keyof typeof serviceModeLabels;
   progress: string;
   status: string;
   contact: string;
+};
+
+type ServicePeriodApiRecord = {
+  id: string;
+  elderId: string;
+  yearMonth: string;
+  serviceMode: keyof typeof serviceModeLabels;
+  status: "DRAFT" | "IN_SERVICE" | "READY_FOR_REVIEW";
+  minimumRecordCount: number;
+  completedRecordCount: number;
+  selfPaidCents: number;
+  voucherCents: number;
+  totalCents: number;
 };
 
 type ElderApiRecord = {
@@ -57,6 +71,12 @@ const statusLabels = {
   RETURNED: "已退回",
 } as const;
 
+const periodStatusLabels = {
+  DRAFT: "待开始",
+  IN_SERVICE: "服务中",
+  READY_FOR_REVIEW: "待审核",
+} as const;
+
 const navigation = [
   { label: "今日概览", icon: LayoutDashboard },
   { label: "老人档案", icon: UsersRound, active: true },
@@ -79,6 +99,7 @@ function mapApiElder(elder: ElderApiRecord): ElderRow {
     name: elder.displayName,
     archiveNo: elder.archiveNo,
     serviceMode: serviceModeLabels[elder.serviceMode],
+    serviceModeCode: elder.serviceMode,
     progress: `${elder.completedRecords} / ${elder.minimumRecords}`,
     status: statusLabels[elder.status],
     contact: `${elder.primaryContactName} · ${elder.primaryContactPhoneMasked}`,
@@ -93,6 +114,12 @@ export function App() {
   const [formError, setFormError] = useState("");
   const [saveNotice, setSaveNotice] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedElder, setSelectedElder] = useState<ElderRow | null>(null);
+  const [periods, setPeriods] = useState<ServicePeriodApiRecord[]>([]);
+  const [isPeriodOpen, setIsPeriodOpen] = useState(false);
+  const [isPeriodLoading, setIsPeriodLoading] = useState(false);
+  const [isPeriodSaving, setIsPeriodSaving] = useState(false);
+  const [periodError, setPeriodError] = useState("");
 
   useEffect(() => {
     async function loadElders() {
@@ -156,6 +183,106 @@ export function App() {
       setFormError("保存失败，请确认本地 API 已启动后重试。");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function openServicePeriods(elder: ElderRow) {
+    setSelectedElder(elder);
+    setPeriods([]);
+    setPeriodError("");
+    setIsPeriodOpen(true);
+    setIsPeriodLoading(true);
+    try {
+      const response = await fetch(
+        `${apiBaseUrl}/organization/elders/${elder.id}/service-periods`,
+        { headers: developmentHeaders },
+      );
+      if (!response.ok) throw new Error(`HTTP_${response.status}`);
+      const result = (await response.json()) as {
+        data: ServicePeriodApiRecord[];
+      };
+      setPeriods(result.data);
+    } catch {
+      setPeriodError("无法读取该档案的月度服务周期。");
+    } finally {
+      setIsPeriodLoading(false);
+    }
+  }
+
+  async function createServicePeriod(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedElder) return;
+    const form = new FormData(event.currentTarget);
+    const yearMonth = String(form.get("yearMonth") ?? "");
+    const serviceMode = String(
+      form.get("periodServiceMode") ?? "",
+    ) as ElderApiRecord["serviceMode"];
+    const minimumRecordCount = Number(form.get("minimumRecordCount"));
+    const selfPaidYuan = Number(form.get("selfPaidYuan"));
+    const voucherYuan = Number(form.get("voucherYuan"));
+    if (
+      !/^\d{4}-(0[1-9]|1[0-2])$/.test(yearMonth) ||
+      !serviceMode ||
+      !Number.isInteger(minimumRecordCount) ||
+      minimumRecordCount < 1 ||
+      !Number.isFinite(selfPaidYuan) ||
+      selfPaidYuan < 0 ||
+      !Number.isFinite(voucherYuan) ||
+      voucherYuan < 0
+    ) {
+      setPeriodError("请检查月份、服务形态、金额和最低记录数。");
+      return;
+    }
+    const selfPaidCents = Math.round(selfPaidYuan * 100);
+    const voucherCents = Math.round(voucherYuan * 100);
+
+    setIsPeriodSaving(true);
+    setPeriodError("");
+    try {
+      const response = await fetch(
+        `${apiBaseUrl}/organization/elders/${selectedElder.id}/service-periods`,
+        {
+          method: "POST",
+          headers: developmentHeaders,
+          body: JSON.stringify({
+            yearMonth,
+            serviceMode,
+            minimumRecordCount,
+            selfPaidCents,
+            voucherCents,
+            totalCents: selfPaidCents + voucherCents,
+          }),
+        },
+      );
+      if (response.status === 409) {
+        setPeriodError("相同月份和服务形态的周期已经存在。");
+        return;
+      }
+      if (!response.ok) throw new Error(`HTTP_${response.status}`);
+      const result = (await response.json()) as {
+        data: ServicePeriodApiRecord;
+      };
+      setPeriods((current) => [result.data, ...current]);
+      const updatedElder: ElderRow = {
+        ...selectedElder,
+        serviceMode: serviceModeLabels[serviceMode],
+        serviceModeCode: serviceMode,
+        progress: `0 / ${minimumRecordCount}`,
+        status: "服务中",
+      };
+      setSelectedElder(updatedElder);
+      setElders((current) =>
+        current.map((elder) =>
+          elder.id === updatedElder.id ? updatedElder : elder,
+        ),
+      );
+      setSaveNotice(
+        `${yearMonth} 月度服务周期已保存；当前进度 0 / ${minimumRecordCount}。`,
+      );
+    } catch {
+      setPeriodError("保存失败，请确认本地 API 已启动后重试。");
+    } finally {
+      setIsPeriodSaving(false);
     }
   }
 
@@ -266,6 +393,7 @@ export function App() {
               className="table-row table-grid"
               key={elder.id}
               type="button"
+              onClick={() => void openServicePeriods(elder)}
             >
               <span className="elder-name">
                 <strong>{elder.name}</strong>
@@ -402,6 +530,137 @@ export function App() {
                   disabled={isSaving}
                 >
                   {isSaving ? "正在保存……" : "保存模拟档案"}
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
+
+      {isPeriodOpen && selectedElder ? (
+        <div className="drawer-backdrop" role="presentation">
+          <section
+            className="create-drawer period-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="period-title"
+          >
+            <header>
+              <div>
+                <p className="eyebrow">{selectedElder.archiveNo}</p>
+                <h2 id="period-title">{selectedElder.name} · 月度服务</h2>
+              </div>
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="关闭月度服务窗口"
+                onClick={() => setIsPeriodOpen(false)}
+              >
+                <X size={20} aria-hidden="true" />
+              </button>
+            </header>
+
+            <section className="period-history" aria-label="已有服务周期">
+              <div className="period-section-title">
+                <h3>已有周期</h3>
+                <span>{periods.length} 个</span>
+              </div>
+              {isPeriodLoading ? <p>正在读取……</p> : null}
+              {!isPeriodLoading && periods.length === 0 ? (
+                <p className="empty-period">尚未建立月度周期。</p>
+              ) : null}
+              {periods.map((period) => (
+                <article className="period-card" key={period.id}>
+                  <div>
+                    <strong>{period.yearMonth}</strong>
+                    <span>{serviceModeLabels[period.serviceMode]}</span>
+                  </div>
+                  <div className="period-progress">
+                    <b>
+                      {period.completedRecordCount} /{" "}
+                      {period.minimumRecordCount} 条
+                    </b>
+                    <mark>{periodStatusLabels[period.status]}</mark>
+                  </div>
+                  <small>
+                    自费 ¥{(period.selfPaidCents / 100).toFixed(2)} · 消费券 ¥
+                    {(period.voucherCents / 100).toFixed(2)} · 合计 ¥
+                    {(period.totalCents / 100).toFixed(2)}
+                  </small>
+                </article>
+              ))}
+            </section>
+
+            <form className="period-form" onSubmit={createServicePeriod}>
+              <div className="period-section-title">
+                <h3>新建月度周期</h3>
+                <span>模拟数据</span>
+              </div>
+              <label>
+                <span>服务月份</span>
+                <input name="yearMonth" type="month" defaultValue="2026-08" />
+              </label>
+              <label>
+                <span>服务形态</span>
+                <select
+                  name="periodServiceMode"
+                  defaultValue={selectedElder.serviceModeCode}
+                >
+                  {Object.entries(serviceModeLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="amount-grid">
+                <label>
+                  <span>自费金额（元）</span>
+                  <input
+                    name="selfPaidYuan"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    defaultValue="0"
+                  />
+                </label>
+                <label>
+                  <span>消费券金额（元）</span>
+                  <input
+                    name="voucherYuan"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    defaultValue="0"
+                  />
+                </label>
+              </div>
+              <label>
+                <span>最低服务记录数</span>
+                <input
+                  name="minimumRecordCount"
+                  type="number"
+                  min="1"
+                  max="31"
+                  defaultValue="4"
+                />
+                <small>当前试点默认每个自然月至少 4 条，可由机构调整。</small>
+              </label>
+              {periodError ? (
+                <p className="form-error" role="alert">
+                  {periodError}
+                </p>
+              ) : null}
+              <div className="drawer-actions">
+                <button type="button" onClick={() => setIsPeriodOpen(false)}>
+                  关闭
+                </button>
+                <button
+                  className="primary-action"
+                  type="submit"
+                  disabled={isPeriodSaving}
+                >
+                  {isPeriodSaving ? "正在保存……" : "保存月度周期"}
                 </button>
               </div>
             </form>

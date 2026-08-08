@@ -420,6 +420,81 @@ dd {
   color: var(--ink);
 }
 
+.period-drawer {
+  width: min(570px, 100vw);
+}
+
+.period-history {
+  padding: 22px 0 6px;
+}
+
+.period-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.period-section-title h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.period-section-title > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.period-card {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 15px;
+  border: 1px solid var(--line);
+  background: #fbf8f1;
+}
+
+.period-card > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.period-card span,
+.period-card small,
+.empty-period,
+.period-form label small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.period-progress b {
+  font-size: 13px;
+}
+
+.period-form {
+  margin-top: 14px;
+  padding-top: 22px;
+  border-top: 1px solid var(--ink);
+}
+
+.amount-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.amount-grid label {
+  display: grid;
+  gap: 8px;
+}
+
+.amount-grid label > span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
 .create-drawer input:focus,
 .create-drawer select:focus {
   border-color: var(--moss);
