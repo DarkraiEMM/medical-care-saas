@@ -46,10 +46,12 @@ Copy-Item .env.example .env
 corepack pnpm test
 corepack pnpm typecheck
 corepack pnpm build
-corepack pnpm dev:web
+corepack pnpm dev:local
 ```
 
-API 的本地模拟身份只在 `NODE_ENV=development` 且 `AUTH_MODE=local-mock` 时有效；生产环境会拒绝这些开发请求头。CloudBase 登录供应商、MySQL、对象存储、短信和小程序 AppID 尚未配置，不要填写伪造密钥。
+打开 `http://127.0.0.1:5173/` 即可使用机构后台。开发环境的老人档案写入 `.local-data/care-dev.sqlite`，因此刷新页面后仍会保留；该目录不会提交 Git。SQLite 只用于当前本机流程验证，正式环境仍使用技术设计中的 MySQL/Prisma。
+
+API 的本地模拟身份只在 `NODE_ENV=development` 且 `AUTH_MODE=local-mock` 时有效；生产环境会拒绝这些开发请求头。CloudBase 登录供应商、正式 MySQL、对象存储、短信和小程序 AppID 尚未配置，不要填写伪造密钥，也不要录入真实老人信息。
 
 ## 基本原则
 

@@ -9,9 +9,10 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 type ElderRow = {
+  id: string;
   name: string;
   archiveNo: string;
   serviceMode: string;
@@ -20,32 +21,41 @@ type ElderRow = {
   contact: string;
 };
 
-const initialElders: ElderRow[] = [
-  {
-    name: "张奶奶（模拟）",
-    archiveNo: "DEMO-2026-001",
-    serviceMode: "周期上门",
-    progress: "2 / 4",
-    status: "服务中",
-    contact: "张女士 · 138****1208",
-  },
-  {
-    name: "李爷爷（模拟）",
-    archiveNo: "DEMO-2026-002",
-    serviceMode: "日托服务",
-    progress: "4 / 4",
-    status: "待审核",
-    contact: "李先生 · 139****3306",
-  },
-  {
-    name: "王奶奶（模拟）",
-    archiveNo: "DEMO-2026-003",
-    serviceMode: "预约上门",
-    progress: "4 / 4",
-    status: "已退回",
-    contact: "王女士 · 136****7811",
-  },
-];
+type ElderApiRecord = {
+  id: string;
+  archiveNo: string;
+  displayName: string;
+  primaryContactName: string;
+  primaryContactPhoneMasked: string;
+  serviceMode: keyof typeof serviceModeLabels;
+  completedRecords: number;
+  minimumRecords: number;
+  status: keyof typeof statusLabels;
+};
+
+const apiBaseUrl =
+  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:3000/api/v1";
+const developmentHeaders = {
+  "content-type": "application/json",
+  "x-dev-tenant-id": "tenant-lanzhou-pilot",
+  "x-dev-role": "TENANT_ADMIN",
+};
+
+const serviceModeLabels = {
+  PERIODIC_HOME_VISIT: "周期上门",
+  APPOINTMENT_HOME_VISIT: "预约上门",
+  DAY_CARE: "日托服务",
+  RESIDENTIAL: "机构常住",
+  SHORT_TERM_LIVE_IN: "短期住家护工",
+  LONG_TERM_LIVE_IN: "长期住家护工",
+} as const;
+
+const statusLabels = {
+  PENDING_PERIOD: "待建周期",
+  IN_SERVICE: "服务中",
+  READY_FOR_REVIEW: "待审核",
+  RETURNED: "已退回",
+} as const;
 
 const navigation = [
   { label: "今日概览", icon: LayoutDashboard },
@@ -63,19 +73,56 @@ function progressWidth(progress: string): string {
   return `${Math.min(100, Math.max(0, (completed / required) * 100))}%`;
 }
 
+function mapApiElder(elder: ElderApiRecord): ElderRow {
+  return {
+    id: elder.id,
+    name: elder.displayName,
+    archiveNo: elder.archiveNo,
+    serviceMode: serviceModeLabels[elder.serviceMode],
+    progress: `${elder.completedRecords} / ${elder.minimumRecords}`,
+    status: statusLabels[elder.status],
+    contact: `${elder.primaryContactName} · ${elder.primaryContactPhoneMasked}`,
+  };
+}
+
 export function App() {
-  const [elders, setElders] = useState(initialElders);
+  const [elders, setElders] = useState<ElderRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [formError, setFormError] = useState("");
   const [saveNotice, setSaveNotice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
-  function createElder(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    async function loadElders() {
+      try {
+        const response = await fetch(`${apiBaseUrl}/organization/elders`, {
+          headers: developmentHeaders,
+        });
+        if (!response.ok) throw new Error(`HTTP_${response.status}`);
+        const result = (await response.json()) as { data: ElderApiRecord[] };
+        setElders(result.data.map(mapApiElder));
+        setLoadError("");
+      } catch {
+        setLoadError("无法连接本地档案服务，请确认 API 已启动。");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    void loadElders();
+  }, []);
+
+  async function createElder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
     const elderName = String(form.get("elderName") ?? "").trim();
     const contactName = String(form.get("contactName") ?? "").trim();
     const contactPhone = String(form.get("contactPhone") ?? "").trim();
-    const serviceMode = String(form.get("serviceMode") ?? "").trim();
+    const serviceMode = String(
+      form.get("serviceMode") ?? "",
+    ).trim() as ElderApiRecord["serviceMode"];
 
     if (!elderName || !contactName || !serviceMode) {
       setFormError("请填写老人姓名、主联系人和服务形态。");
@@ -86,23 +133,30 @@ export function App() {
       return;
     }
 
-    const archiveSequence = elders.length + 1;
-    const maskedPhone = `${contactPhone.slice(0, 3)}****${contactPhone.slice(-4)}`;
-    setElders((current) => [
-      {
-        name: elderName.includes("模拟") ? elderName : `${elderName}（模拟）`,
-        archiveNo: `DEMO-2026-${String(archiveSequence).padStart(3, "0")}`,
-        serviceMode,
-        progress: "0 / 4",
-        status: "待建周期",
-        contact: `${contactName} · ${maskedPhone}`,
-      },
-      ...current,
-    ]);
-    setFormError("");
-    setSaveNotice("模拟档案已加入当前列表；刷新页面后会重置。");
-    setIsCreateOpen(false);
-    event.currentTarget.reset();
+    setIsSaving(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/organization/elders`, {
+        method: "POST",
+        headers: developmentHeaders,
+        body: JSON.stringify({
+          displayName: elderName,
+          primaryContactName: contactName,
+          primaryContactPhone: contactPhone,
+          serviceMode,
+        }),
+      });
+      if (!response.ok) throw new Error(`HTTP_${response.status}`);
+      const result = (await response.json()) as { data: ElderApiRecord };
+      setElders((current) => [mapApiElder(result.data), ...current]);
+      setFormError("");
+      setSaveNotice("模拟档案已写入本地开发数据库；刷新页面后仍会保留。");
+      setIsCreateOpen(false);
+      formElement.reset();
+    } catch {
+      setFormError("保存失败，请确认本地 API 已启动后重试。");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -150,24 +204,35 @@ export function App() {
 
         <section className="status-strip" aria-label="月度状态摘要">
           <div>
-            <strong>{36 + elders.length - initialElders.length}</strong>
+            <strong>{isLoading ? "—" : elders.length}</strong>
             <span>在册老人</span>
           </div>
           <div>
-            <strong>11</strong>
+            <strong>
+              {elders.filter((elder) => elder.status === "服务中").length}
+            </strong>
             <span>本月服务中</span>
           </div>
           <div>
-            <strong>5</strong>
+            <strong>
+              {elders.filter((elder) => elder.status === "待审核").length}
+            </strong>
             <span>等待机构审核</span>
           </div>
           <div className="attention">
-            <strong>2</strong>
+            <strong>
+              {elders.filter((elder) => elder.status === "已退回").length}
+            </strong>
             <span>退回待补正</span>
           </div>
         </section>
 
         {saveNotice ? <p className="save-notice">{saveNotice}</p> : null}
+        {loadError ? (
+          <p className="load-error" role="alert">
+            {loadError}
+          </p>
+        ) : null}
 
         <div className="filter-row">
           <label className="search-field">
@@ -190,10 +255,16 @@ export function App() {
             <span>本月记录</span>
             <span>状态</span>
           </div>
+          {isLoading ? (
+            <p className="table-message">正在读取本地档案……</p>
+          ) : null}
+          {!isLoading && !loadError && elders.length === 0 ? (
+            <p className="table-message">当前机构还没有老人档案。</p>
+          ) : null}
           {elders.map((elder) => (
             <button
               className="table-row table-grid"
-              key={elder.archiveNo}
+              key={elder.id}
               type="button"
             >
               <span className="elder-name">
@@ -272,7 +343,7 @@ export function App() {
               </button>
             </header>
             <p className="drawer-warning">
-              当前仅用于流程验证，请填写虚构信息。数据只保存在本次页面会话中。
+              当前仅用于流程验证，请填写虚构信息。数据会写入本机开发数据库，不会上传云端。
             </p>
             <form onSubmit={createElder}>
               <label>
@@ -308,12 +379,12 @@ export function App() {
                   <option value="" disabled>
                     请选择
                   </option>
-                  <option value="周期上门">周期上门</option>
-                  <option value="预约上门">预约上门</option>
-                  <option value="日托服务">日托服务</option>
-                  <option value="机构常住">机构常住</option>
-                  <option value="短期住家护工">短期住家护工</option>
-                  <option value="长期住家护工">长期住家护工</option>
+                  <option value="PERIODIC_HOME_VISIT">周期上门</option>
+                  <option value="APPOINTMENT_HOME_VISIT">预约上门</option>
+                  <option value="DAY_CARE">日托服务</option>
+                  <option value="RESIDENTIAL">机构常住</option>
+                  <option value="SHORT_TERM_LIVE_IN">短期住家护工</option>
+                  <option value="LONG_TERM_LIVE_IN">长期住家护工</option>
                 </select>
               </label>
               {formError ? (
@@ -325,8 +396,12 @@ export function App() {
                 <button type="button" onClick={() => setIsCreateOpen(false)}>
                   取消
                 </button>
-                <button className="primary-action" type="submit">
-                  保存模拟档案
+                <button
+                  className="primary-action"
+                  type="submit"
+                  disabled={isSaving}
+                >
+                  {isSaving ? "正在保存……" : "保存模拟档案"}
                 </button>
               </div>
             </form>

@@ -16,6 +16,10 @@ async function bootstrap(): Promise<void> {
     },
   );
   app.setGlobalPrefix("api/v1");
+  app.enableCors({
+    origin: [/^http:\/\/(127\.0\.0\.1|localhost):\d+$/],
+    methods: ["GET", "POST", "OPTIONS"],
+  });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableShutdownHooks();
 
