@@ -7,9 +7,20 @@ import {
   Search,
   Settings,
   UsersRound,
+  X,
 } from "lucide-react";
+import { useState, type FormEvent } from "react";
 
-const elders = [
+type ElderRow = {
+  name: string;
+  archiveNo: string;
+  serviceMode: string;
+  progress: string;
+  status: string;
+  contact: string;
+};
+
+const initialElders: ElderRow[] = [
   {
     name: "张奶奶（模拟）",
     archiveNo: "DEMO-2026-001",
@@ -45,7 +56,55 @@ const navigation = [
   { label: "机构设置", icon: Settings },
 ];
 
+function progressWidth(progress: string): string {
+  const [completed = 0, required = 4] = progress
+    .split("/")
+    .map((part) => Number(part.trim()));
+  return `${Math.min(100, Math.max(0, (completed / required) * 100))}%`;
+}
+
 export function App() {
+  const [elders, setElders] = useState(initialElders);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [saveNotice, setSaveNotice] = useState("");
+
+  function createElder(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const elderName = String(form.get("elderName") ?? "").trim();
+    const contactName = String(form.get("contactName") ?? "").trim();
+    const contactPhone = String(form.get("contactPhone") ?? "").trim();
+    const serviceMode = String(form.get("serviceMode") ?? "").trim();
+
+    if (!elderName || !contactName || !serviceMode) {
+      setFormError("请填写老人姓名、主联系人和服务形态。");
+      return;
+    }
+    if (!/^1[3-9]\d{9}$/.test(contactPhone)) {
+      setFormError("请输入11位中国大陆手机号；模拟信息也需要符合格式。");
+      return;
+    }
+
+    const archiveSequence = elders.length + 1;
+    const maskedPhone = `${contactPhone.slice(0, 3)}****${contactPhone.slice(-4)}`;
+    setElders((current) => [
+      {
+        name: elderName.includes("模拟") ? elderName : `${elderName}（模拟）`,
+        archiveNo: `DEMO-2026-${String(archiveSequence).padStart(3, "0")}`,
+        serviceMode,
+        progress: "0 / 4",
+        status: "待建周期",
+        contact: `${contactName} · ${maskedPhone}`,
+      },
+      ...current,
+    ]);
+    setFormError("");
+    setSaveNotice("模拟档案已加入当前列表；刷新页面后会重置。");
+    setIsCreateOpen(false);
+    event.currentTarget.reset();
+  }
+
   return (
     <main className="workspace-shell">
       <aside className="side-rail">
@@ -77,14 +136,21 @@ export function App() {
             <p>兰州试点机构 · 2026 年 8 月</p>
             <h1>老人档案与服务进度</h1>
           </div>
-          <button className="primary-action" type="button">
+          <button
+            className="primary-action"
+            type="button"
+            onClick={() => {
+              setFormError("");
+              setIsCreateOpen(true);
+            }}
+          >
             新建模拟档案
           </button>
         </header>
 
         <section className="status-strip" aria-label="月度状态摘要">
           <div>
-            <strong>36</strong>
+            <strong>{36 + elders.length - initialElders.length}</strong>
             <span>在册老人</span>
           </div>
           <div>
@@ -100,6 +166,8 @@ export function App() {
             <span>退回待补正</span>
           </div>
         </section>
+
+        {saveNotice ? <p className="save-notice">{saveNotice}</p> : null}
 
         <div className="filter-row">
           <label className="search-field">
@@ -139,7 +207,7 @@ export function App() {
                 <i>
                   <em
                     style={{
-                      width: elder.progress === "2 / 4" ? "50%" : "100%",
+                      width: progressWidth(elder.progress),
                     }}
                   />
                 </i>
@@ -180,6 +248,91 @@ export function App() {
           当前版本仅使用虚拟信息，不得录入真实身份证、健康、合同或履约影像。
         </p>
       </aside>
+
+      {isCreateOpen ? (
+        <div className="drawer-backdrop" role="presentation">
+          <section
+            className="create-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="create-title"
+          >
+            <header>
+              <div>
+                <p className="eyebrow">模拟建档</p>
+                <h2 id="create-title">建立老人基础档案</h2>
+              </div>
+              <button
+                className="icon-button"
+                type="button"
+                aria-label="关闭建档窗口"
+                onClick={() => setIsCreateOpen(false)}
+              >
+                <X size={20} aria-hidden="true" />
+              </button>
+            </header>
+            <p className="drawer-warning">
+              当前仅用于流程验证，请填写虚构信息。数据只保存在本次页面会话中。
+            </p>
+            <form onSubmit={createElder}>
+              <label>
+                <span>老人姓名</span>
+                <input
+                  name="elderName"
+                  placeholder="例如：赵奶奶"
+                  maxLength={50}
+                  autoFocus
+                />
+              </label>
+              <label>
+                <span>主联系人</span>
+                <input
+                  name="contactName"
+                  placeholder="例如：赵女士"
+                  maxLength={50}
+                />
+              </label>
+              <label>
+                <span>联系人手机号</span>
+                <input
+                  name="contactPhone"
+                  type="tel"
+                  inputMode="numeric"
+                  placeholder="请输入虚构的11位手机号"
+                  maxLength={11}
+                />
+              </label>
+              <label>
+                <span>服务形态</span>
+                <select name="serviceMode" defaultValue="">
+                  <option value="" disabled>
+                    请选择
+                  </option>
+                  <option value="周期上门">周期上门</option>
+                  <option value="预约上门">预约上门</option>
+                  <option value="日托服务">日托服务</option>
+                  <option value="机构常住">机构常住</option>
+                  <option value="短期住家护工">短期住家护工</option>
+                  <option value="长期住家护工">长期住家护工</option>
+                </select>
+              </label>
+              {formError ? (
+                <p className="form-error" role="alert">
+                  {formError}
+                </p>
+              ) : null}
+              <div className="drawer-actions">
+                <button type="button" onClick={() => setIsCreateOpen(false)}>
+                  取消
+                </button>
+                <button className="primary-action" type="submit">
+                  保存模拟档案
+                </button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }
