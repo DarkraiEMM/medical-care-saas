@@ -1,0 +1,11 @@
+{
+  "description": "医养照护工作人员小程序模拟版本",
+  "miniprogramRoot": "./",
+  "compileType": "miniprogram",
+  "setting": {
+    "es6": true,
+    "minified": true,
+    "postcss": true
+  },
+  "appid": "touristappid"
+}

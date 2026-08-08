@@ -1,0 +1,60 @@
+:root {
+  font-family:
+    "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
+  color: #17211b;
+  background: #f5f1e8;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 60px 40px;
+}
+header {
+  border-bottom: 2px solid #17211b;
+}
+header p {
+  color: #40634b;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+h1,
+h2 {
+  font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
+}
+h1 {
+  font-size: 34px;
+}
+section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid #c9c4b8;
+}
+section div {
+  padding: 28px 0;
+}
+section span,
+section strong {
+  display: block;
+}
+section span {
+  color: #6a706a;
+  font-size: 13px;
+}
+section strong {
+  margin-top: 8px;
+  font-size: 28px;
+}
+article {
+  max-width: 620px;
+  margin: 60px 0 0 28%;
+  border-left: 5px solid #c88732;
+  padding: 8px 0 8px 24px;
+}
+article p {
+  color: #505951;
+  line-height: 1.8;
+}

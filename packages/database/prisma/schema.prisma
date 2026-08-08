@@ -1,0 +1,412 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  DEPARTED
+}
+
+enum ServiceRecordStatus {
+  DRAFT
+  SUBMITTED
+  RETURNED
+  APPROVED
+  ARCHIVED
+}
+
+enum ServiceStage {
+  BEFORE
+  DURING
+  AFTER
+}
+
+enum ServicePeriodStatus {
+  DRAFT
+  IN_SERVICE
+  READY_FOR_REVIEW
+  APPROVED
+  EXPORTED
+  ARCHIVED
+}
+
+enum CatalogScope {
+  PLATFORM
+  TENANT
+}
+
+enum EvidenceKind {
+  PHOTO
+  VIDEO
+  AUDIO
+  DOCUMENT
+  SIGNATURE
+  TEXT_ATTESTATION
+}
+
+enum EvidenceVariant {
+  ORIGINAL
+  WATERMARKED
+  THUMBNAIL
+  REDACTED
+}
+
+model Tenant {
+  id             String          @id @default(cuid())
+  name           String          @db.VarChar(120)
+  status         String          @default("ACTIVE") @db.VarChar(30)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  departments    Department[]
+  staffProfiles  StaffProfile[]
+  elders         Elder[]
+  servicePeriods ServicePeriod[]
+  serviceRecords ServiceRecord[]
+  catalogItems   TenantServiceItem[]
+  auditEvents    AuditEvent[]
+  supportGrants  SupportGrant[]
+}
+
+model UserAccount {
+  id              String              @id @default(cuid())
+  authSubject     String              @unique @db.VarChar(191)
+  maskedPhone     String?             @db.VarChar(32)
+  status          AccountStatus       @default(INVITED)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  staffProfiles   StaffProfile[]
+  supportGrantsAs SupportGrant[]       @relation("SupportGrantGrantee")
+  supportGrantsBy SupportGrant[]       @relation("SupportGrantIssuer")
+  auditEvents     AuditEvent[]
+}
+
+model Department {
+  id          String                  @id @default(cuid())
+  tenantId    String
+  name        String                  @db.VarChar(80)
+  active      Boolean                 @default(true)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  tenant      Tenant                  @relation(fields: [tenantId], references: [id])
+  memberships StaffDepartmentMember[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, active])
+}
+
+model StaffProfile {
+  id                  String                  @id @default(cuid())
+  tenantId            String
+  userAccountId       String?
+  displayName         String                  @db.VarChar(80)
+  employeeNo          String?                 @db.VarChar(60)
+  status              AccountStatus           @default(INVITED)
+  joinedAt            DateTime?
+  departedAt          DateTime?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+  tenant              Tenant                  @relation(fields: [tenantId], references: [id])
+  userAccount         UserAccount?            @relation(fields: [userAccountId], references: [id])
+  departmentMemberships StaffDepartmentMember[]
+  roleAssignments     StaffRoleAssignment[]
+  recordParticipants  ServiceParticipant[]
+
+  @@unique([tenantId, employeeNo])
+  @@index([tenantId, status])
+  @@index([tenantId, userAccountId])
+}
+
+model StaffDepartmentMember {
+  id           String       @id @default(cuid())
+  tenantId     String
+  staffId      String
+  departmentId String
+  createdAt    DateTime     @default(now())
+  staff        StaffProfile @relation(fields: [staffId], references: [id])
+  department   Department   @relation(fields: [departmentId], references: [id])
+
+  @@unique([tenantId, staffId, departmentId])
+  @@index([tenantId, departmentId])
+}
+
+model StaffRoleAssignment {
+  id        String       @id @default(cuid())
+  tenantId  String
+  staffId   String
+  roleCode  String       @db.VarChar(60)
+  scopeType String       @db.VarChar(30)
+  scopeId   String?      @db.VarChar(191)
+  createdAt DateTime     @default(now())
+  staff     StaffProfile @relation(fields: [staffId], references: [id])
+
+  @@unique([tenantId, staffId, roleCode, scopeType, scopeId])
+  @@index([tenantId, roleCode])
+}
+
+model Elder {
+  id                  String          @id @default(cuid())
+  tenantId            String
+  archiveNo           String          @db.VarChar(60)
+  displayName         String          @db.VarChar(80)
+  identityCiphertext  Bytes?
+  identityLastFour    String?         @db.Char(4)
+  allergiesJson       Json
+  medicalHistoryJson  Json
+  dietaryRestrictionsJson Json
+  careNotes           String?         @db.Text
+  primaryContactId    String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  tenant              Tenant          @relation(fields: [tenantId], references: [id])
+  contacts            ElderContact[]
+  servicePeriods      ServicePeriod[]
+
+  @@unique([tenantId, archiveNo])
+  @@index([tenantId, displayName])
+}
+
+model ElderContact {
+  id                    String    @id @default(cuid())
+  tenantId              String
+  elderId               String
+  name                  String    @db.VarChar(80)
+  relationship          String    @db.VarChar(60)
+  phoneCiphertext       Bytes?
+  phoneLastFour         String?   @db.Char(4)
+  isPrimary             Boolean   @default(false)
+  authorityBasisType    String?   @db.VarChar(60)
+  authorityEvidenceId   String?
+  effectiveFrom         DateTime?
+  effectiveUntil        DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  elder                 Elder     @relation(fields: [elderId], references: [id])
+
+  @@index([tenantId, elderId])
+  @@index([tenantId, isPrimary])
+}
+
+model ServiceItemDefinition {
+  id          String              @id @default(cuid())
+  scope       CatalogScope
+  ownerTenantId String?
+  stableCode  String              @db.VarChar(100)
+  parentId    String?
+  createdAt   DateTime            @default(now())
+  versions    ServiceItemVersion[]
+
+  @@unique([scope, ownerTenantId, stableCode])
+  @@index([ownerTenantId, stableCode])
+}
+
+model ServiceItemVersion {
+  id             String                @id @default(cuid())
+  definitionId   String
+  version        Int
+  name           String                @db.VarChar(120)
+  description    String?               @db.Text
+  evidenceRuleJson Json
+  qualificationRuleJson Json
+  effectiveFrom  DateTime
+  effectiveUntil DateTime?
+  createdAt      DateTime              @default(now())
+  definition     ServiceItemDefinition @relation(fields: [definitionId], references: [id])
+  tenantSettings TenantServiceItem[]
+  recordItems    ServiceRecordItem[]
+
+  @@unique([definitionId, version])
+}
+
+model TenantServiceItem {
+  id            String             @id @default(cuid())
+  tenantId      String
+  versionId     String
+  enabled       Boolean            @default(true)
+  sortOrder     Int                @default(0)
+  localLabel    String?            @db.VarChar(120)
+  configJson    Json
+  tenant        Tenant             @relation(fields: [tenantId], references: [id])
+  version       ServiceItemVersion @relation(fields: [versionId], references: [id])
+
+  @@unique([tenantId, versionId])
+  @@index([tenantId, enabled, sortOrder])
+}
+
+model ServicePeriod {
+  id                  String              @id @default(cuid())
+  tenantId            String
+  elderId             String
+  yearMonth           String              @db.Char(7)
+  serviceMode         String              @db.VarChar(50)
+  status              ServicePeriodStatus @default(DRAFT)
+  minimumRecordCount  Int                 @default(4)
+  selfPaidCents       Int                 @default(0)
+  voucherCents        Int                 @default(0)
+  totalCents          Int                 @default(0)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  tenant              Tenant              @relation(fields: [tenantId], references: [id])
+  elder               Elder               @relation(fields: [elderId], references: [id])
+  records             ServiceRecord[]
+
+  @@unique([tenantId, elderId, yearMonth, serviceMode])
+  @@index([tenantId, yearMonth, status])
+}
+
+model ServiceRecord {
+  id              String              @id @default(cuid())
+  tenantId        String
+  periodId        String
+  status          ServiceRecordStatus @default(DRAFT)
+  occurredAt      DateTime
+  startedAt       DateTime?
+  endedAt         DateTime?
+  log             String              @db.Text
+  revision        Int                 @default(1)
+  supersedesId    String?
+  createdById     String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  tenant          Tenant              @relation(fields: [tenantId], references: [id])
+  period          ServicePeriod       @relation(fields: [periodId], references: [id])
+  participants    ServiceParticipant[]
+  stages          ServiceStageEntry[]
+  items           ServiceRecordItem[]
+  vitalSigns      VitalSign[]
+  evidenceLinks   ServiceEvidenceLink[]
+
+  @@index([tenantId, periodId, occurredAt])
+  @@index([tenantId, status, updatedAt])
+}
+
+model ServiceParticipant {
+  id          String        @id @default(cuid())
+  tenantId    String
+  recordId    String
+  staffId     String
+  roleLabel   String?       @db.VarChar(80)
+  confirmedAt DateTime?
+  record      ServiceRecord @relation(fields: [recordId], references: [id])
+  staff       StaffProfile  @relation(fields: [staffId], references: [id])
+
+  @@unique([tenantId, recordId, staffId])
+  @@index([tenantId, staffId])
+}
+
+model ServiceStageEntry {
+  id              String        @id @default(cuid())
+  tenantId        String
+  recordId        String
+  stage           ServiceStage
+  recordedById    String
+  recordedAt      DateTime
+  latitudeRounded Decimal?      @db.Decimal(9, 5)
+  longitudeRounded Decimal?     @db.Decimal(10, 5)
+  note            String?       @db.Text
+  record          ServiceRecord @relation(fields: [recordId], references: [id])
+
+  @@unique([tenantId, recordId, stage])
+  @@index([tenantId, recordedAt])
+}
+
+model ServiceRecordItem {
+  id             String             @id @default(cuid())
+  tenantId       String
+  recordId       String
+  itemVersionId  String
+  resultText     String?            @db.Text
+  durationMinute Int?
+  record         ServiceRecord      @relation(fields: [recordId], references: [id])
+  itemVersion    ServiceItemVersion @relation(fields: [itemVersionId], references: [id])
+
+  @@unique([tenantId, recordId, itemVersionId])
+}
+
+model VitalSign {
+  id          String        @id @default(cuid())
+  tenantId    String
+  recordId    String
+  type        String        @db.VarChar(50)
+  valueJson   Json
+  measuredAt  DateTime
+  context     String?       @db.VarChar(200)
+  record      ServiceRecord @relation(fields: [recordId], references: [id])
+
+  @@index([tenantId, recordId, type])
+}
+
+model EvidenceObject {
+  id              String                @id @default(cuid())
+  tenantId        String
+  kind            EvidenceKind
+  variant         EvidenceVariant
+  parentObjectId  String?
+  storageKey      String                @db.VarChar(500)
+  sha256          String                @db.Char(64)
+  mimeType        String                @db.VarChar(120)
+  byteSize        BigInt
+  capturedAt      DateTime?
+  retentionUntil  DateTime?
+  legalHold       Boolean               @default(false)
+  createdAt       DateTime              @default(now())
+  serviceLinks    ServiceEvidenceLink[]
+
+  @@unique([tenantId, storageKey])
+  @@index([tenantId, sha256])
+  @@index([tenantId, retentionUntil, legalHold])
+}
+
+model ServiceEvidenceLink {
+  id          String         @id @default(cuid())
+  tenantId    String
+  recordId    String
+  evidenceId  String
+  sharedByTeam Boolean       @default(false)
+  record      ServiceRecord  @relation(fields: [recordId], references: [id])
+  evidence    EvidenceObject @relation(fields: [evidenceId], references: [id])
+
+  @@unique([tenantId, recordId, evidenceId])
+}
+
+model SupportGrant {
+  id              String      @id @default(cuid())
+  tenantId        String
+  granteeUserId   String
+  issuedByUserId  String
+  permissionJson  Json
+  reason          String      @db.VarChar(500)
+  startsAt        DateTime
+  expiresAt       DateTime
+  revokedAt       DateTime?
+  createdAt       DateTime    @default(now())
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  grantee         UserAccount @relation("SupportGrantGrantee", fields: [granteeUserId], references: [id])
+  issuedBy        UserAccount @relation("SupportGrantIssuer", fields: [issuedByUserId], references: [id])
+
+  @@index([tenantId, granteeUserId, expiresAt])
+}
+
+model AuditEvent {
+  id            String       @id @default(cuid())
+  tenantId      String
+  actorUserId   String?
+  action        String       @db.VarChar(100)
+  resourceType  String       @db.VarChar(100)
+  resourceId    String       @db.VarChar(191)
+  outcome       String       @db.VarChar(30)
+  reason        String?      @db.VarChar(500)
+  metadataJson  Json
+  occurredAt    DateTime     @default(now())
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
+  actor         UserAccount? @relation(fields: [actorUserId], references: [id])
+
+  @@index([tenantId, resourceType, resourceId, occurredAt])
+  @@index([tenantId, actorUserId, occurredAt])
+}
