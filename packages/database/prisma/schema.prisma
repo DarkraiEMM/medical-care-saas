@@ -32,6 +32,7 @@ enum ServicePeriodStatus {
   DRAFT
   IN_SERVICE
   READY_FOR_REVIEW
+  RETURNED
   APPROVED
   EXPORTED
   ARCHIVED
@@ -245,6 +246,7 @@ model ServicePeriod {
   elderId             String
   yearMonth           String              @db.Char(7)
   serviceMode         String              @db.VarChar(50)
+  revision            Int                 @default(1)
   status              ServicePeriodStatus @default(DRAFT)
   minimumRecordCount  Int                 @default(4)
   selfPaidCents       Int                 @default(0)
@@ -256,7 +258,7 @@ model ServicePeriod {
   elder               Elder               @relation(fields: [elderId], references: [id])
   records             ServiceRecord[]
 
-  @@unique([tenantId, elderId, yearMonth, serviceMode])
+  @@unique([tenantId, elderId, yearMonth, serviceMode, revision])
   @@index([tenantId, yearMonth, status])
 }
 

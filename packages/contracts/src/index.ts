@@ -31,6 +31,37 @@ export const createElderSchema = z.object({
 });
 export type CreateElderInput = z.infer<typeof createElderSchema>;
 
+export const serviceModeSchema = z.enum([
+  "PERIODIC_HOME_VISIT",
+  "APPOINTMENT_HOME_VISIT",
+  "DAY_CARE",
+  "RESIDENTIAL",
+  "SHORT_TERM_LIVE_IN",
+  "LONG_TERM_LIVE_IN",
+]);
+
+export const createServicePeriodSchema = z
+  .object({
+    yearMonth: z
+      .string()
+      .regex(/^\d{4}-(0[1-9]|1[0-2])$/, "月份必须使用 YYYY-MM 格式"),
+    serviceMode: serviceModeSchema,
+    minimumRecordCount: z.number().int().min(1).max(31).default(4),
+    selfPaidCents: z.number().int().min(0),
+    voucherCents: z.number().int().min(0),
+    totalCents: z.number().int().min(0),
+  })
+  .refine(
+    (input) => input.selfPaidCents + input.voucherCents === input.totalCents,
+    {
+      path: ["totalCents"],
+      message: "自费金额与消费券金额之和必须等于合计金额",
+    },
+  );
+export type CreateServicePeriodInput = z.infer<
+  typeof createServicePeriodSchema
+>;
+
 export const vitalSignSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("BLOOD_PRESSURE"),
