@@ -1,0 +1,24 @@
+{
+  "name": "medical-care-saas",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.20.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "pnpm -r --if-present build",
+    "dev:api": "pnpm --filter @care/api dev",
+    "dev:web": "pnpm --filter @care/organization-web dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "db:generate": "pnpm --filter @care/database db:generate",
+    "db:validate": "pnpm --filter @care/database db:validate"
+  },
+  "devDependencies": {
+    "prettier": "3.9.6",
+    "typescript": "5.9.3"
+  }
+}

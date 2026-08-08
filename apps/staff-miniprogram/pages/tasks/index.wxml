@@ -1,0 +1,35 @@
+<view class="page-shell">
+  <view class="warning">体验版本 · 仅限虚拟数据</view>
+  <view class="heading">
+    <text class="date">{{dateLabel}}</text>
+    <text class="title">今天有 {{tasks.length}} 项服务</text>
+  </view>
+
+  <view class="timeline">
+    <button
+      wx:for="{{tasks}}"
+      wx:key="id"
+      class="task-row"
+      data-id="{{item.id}}"
+      bindtap="openTask"
+      hover-class="task-row-active"
+    >
+      <view class="time-column">
+        <text>{{item.time}}</text>
+        <view class="timeline-dot"></view>
+      </view>
+      <view class="task-body">
+        <view class="task-topline">
+          <text class="elder-name">{{item.elderName}}</text>
+          <text class="status status-{{item.status}}">{{item.status}}</text>
+        </view>
+        <text class="service-items">{{item.serviceItems}}</text>
+        <text class="progress">{{item.progress}}</text>
+      </view>
+    </button>
+  </view>
+
+  <view class="bottom-action">
+    <button type="primary">登记临时服务</button>
+  </view>
+</view>

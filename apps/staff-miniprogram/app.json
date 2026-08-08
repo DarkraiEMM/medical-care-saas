@@ -1,0 +1,11 @@
+{
+  "pages": ["pages/tasks/index"],
+  "window": {
+    "navigationBarBackgroundColor": "#17211B",
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "今日服务",
+    "backgroundColor": "#F5F1E8"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

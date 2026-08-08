@@ -1,0 +1,121 @@
+.page-shell {
+  min-height: 100vh;
+  padding: 0 32rpx 150rpx;
+}
+.warning {
+  margin: 24rpx -32rpx 0;
+  padding: 14rpx 32rpx;
+  background: #f0dfbf;
+  color: #7b501a;
+  font-size: 22rpx;
+}
+.heading {
+  padding: 50rpx 0 34rpx;
+  border-bottom: 2rpx solid #17211b;
+}
+.date {
+  display: block;
+  color: #40634b;
+  font-size: 24rpx;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+.title {
+  display: block;
+  margin-top: 12rpx;
+  font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
+  font-size: 48rpx;
+  font-weight: 700;
+}
+.timeline {
+  padding-top: 12rpx;
+}
+.task-row {
+  display: flex;
+  width: 100%;
+  padding: 30rpx 0;
+  border-bottom: 2rpx solid #d0cabf;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  line-height: 1.4;
+}
+.task-row-active {
+  background: #ebe5d8;
+}
+.time-column {
+  position: relative;
+  width: 118rpx;
+  flex: none;
+  color: #40634b;
+  font-size: 30rpx;
+  font-weight: 700;
+}
+.timeline-dot {
+  position: absolute;
+  top: 54rpx;
+  left: 13rpx;
+  width: 14rpx;
+  height: 14rpx;
+  border: 4rpx solid #f5f1e8;
+  border-radius: 50%;
+  background: #c88732;
+  box-shadow: 0 0 0 2rpx #c88732;
+}
+.timeline-dot::after {
+  content: "";
+  position: absolute;
+  top: 16rpx;
+  left: 4rpx;
+  width: 2rpx;
+  height: 106rpx;
+  background: #b9b4aa;
+}
+.task-body {
+  min-width: 0;
+  flex: 1;
+}
+.task-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20rpx;
+}
+.elder-name {
+  font-size: 34rpx;
+  font-weight: 700;
+}
+.status {
+  flex: none;
+  padding: 5rpx 12rpx;
+  background: #dfe8df;
+  color: #31513b;
+  font-size: 22rpx;
+}
+.service-items {
+  display: block;
+  margin-top: 14rpx;
+  color: #505951;
+  font-size: 27rpx;
+}
+.progress {
+  display: block;
+  margin-top: 18rpx;
+  color: #6a706a;
+  font-size: 23rpx;
+}
+.bottom-action {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 18rpx 32rpx calc(18rpx + env(safe-area-inset-bottom));
+  border-top: 2rpx solid #c9c4b8;
+  background: rgba(245, 241, 232, 0.97);
+}
+.bottom-action button {
+  border-radius: 2rpx;
+  background: #40634b;
+  font-size: 30rpx;
+  font-weight: 700;
+}
