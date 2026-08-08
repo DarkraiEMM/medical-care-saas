@@ -9,12 +9,14 @@
 - [项目长期记忆](./PROJECT_MEMORY.md)
 - [立项说明书](./specs/medical-care-saas/requirements.md)
 - [第一版功能边界](./specs/medical-care-saas/scope-v1.md)
+- [首家试点虚拟默认业务模板](./specs/medical-care-saas/prototype-default-templates-v1.md)
+- [第一版技术设计](./specs/medical-care-saas/design.md)
 
 ## 当前状态
 
 - 产品名称尚未最终确定。
-- 立项说明和第一版功能边界处于待确认状态。
-- 在需求确认前不进入技术设计和实施任务拆解。
+- 立项说明和第一版功能边界已经确认。
+- 第一版技术设计已经形成草案，待确认后再进入实施任务拆解。
 - 仓库当前不包含真实老人数据、机构合同或服务影像。
 
 ## 基本原则
