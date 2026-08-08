@@ -8,7 +8,8 @@ export interface ServicePeriodRecord {
   elderId: string;
   yearMonth: string;
   serviceMode: CreateServicePeriodInput["serviceMode"];
-  status: "DRAFT" | "IN_SERVICE" | "READY_FOR_REVIEW";
+  revision: number;
+  status: "DRAFT" | "IN_SERVICE" | "READY_FOR_REVIEW" | "RETURNED";
   minimumRecordCount: number;
   completedRecordCount: number;
   selfPaidCents: number;

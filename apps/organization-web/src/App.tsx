@@ -27,7 +27,8 @@ type ServicePeriodApiRecord = {
   elderId: string;
   yearMonth: string;
   serviceMode: keyof typeof serviceModeLabels;
-  status: "DRAFT" | "IN_SERVICE" | "READY_FOR_REVIEW";
+  revision: number;
+  status: "DRAFT" | "IN_SERVICE" | "READY_FOR_REVIEW" | "RETURNED";
   minimumRecordCount: number;
   completedRecordCount: number;
   selfPaidCents: number;
@@ -75,6 +76,7 @@ const periodStatusLabels = {
   DRAFT: "待开始",
   IN_SERVICE: "服务中",
   READY_FOR_REVIEW: "待审核",
+  RETURNED: "已退回",
 } as const;
 
 const navigation = [
@@ -263,13 +265,16 @@ export function App() {
         data: ServicePeriodApiRecord;
       };
       setPeriods((current) => [result.data, ...current]);
-      const updatedElder: ElderRow = {
-        ...selectedElder,
-        serviceMode: serviceModeLabels[serviceMode],
-        serviceModeCode: serviceMode,
-        progress: `0 / ${minimumRecordCount}`,
-        status: "服务中",
-      };
+      const adoptsFirstPeriod = selectedElder.status === "待建周期";
+      const updatedElder: ElderRow = adoptsFirstPeriod
+        ? {
+            ...selectedElder,
+            serviceMode: serviceModeLabels[serviceMode],
+            serviceModeCode: serviceMode,
+            progress: `0 / ${minimumRecordCount}`,
+            status: "服务中",
+          }
+        : selectedElder;
       setSelectedElder(updatedElder);
       setElders((current) =>
         current.map((elder) =>
@@ -573,20 +578,30 @@ export function App() {
                 <article className="period-card" key={period.id}>
                   <div>
                     <strong>{period.yearMonth}</strong>
-                    <span>{serviceModeLabels[period.serviceMode]}</span>
+                    <span>
+                      {serviceModeLabels[period.serviceMode]} · 第{" "}
+                      {period.revision} 版
+                    </span>
                   </div>
                   <div className="period-progress">
                     <b>
                       {period.completedRecordCount} /{" "}
                       {period.minimumRecordCount} 条
                     </b>
-                    <mark>{periodStatusLabels[period.status]}</mark>
+                    <mark data-status={periodStatusLabels[period.status]}>
+                      {periodStatusLabels[period.status]}
+                    </mark>
                   </div>
                   <small>
                     自费 ¥{(period.selfPaidCents / 100).toFixed(2)} · 消费券 ¥
                     {(period.voucherCents / 100).toFixed(2)} · 合计 ¥
                     {(period.totalCents / 100).toFixed(2)}
                   </small>
+                  {period.id.startsWith("period-demo-") ? (
+                    <small className="demo-period-note">
+                      这是早期演示汇总；对应的逐条服务日志尚未建立。
+                    </small>
+                  ) : null}
                 </article>
               ))}
             </section>
@@ -597,8 +612,11 @@ export function App() {
                 <span>模拟数据</span>
               </div>
               <label>
-                <span>服务月份</span>
+                <span>核销归属月份</span>
                 <input name="yearMonth" type="month" defaultValue="2026-08" />
+                <small>
+                  这里按自然月归档；实际上门日期和时间记录在本月的每条服务记录中。
+                </small>
               </label>
               <label>
                 <span>服务形态</span>

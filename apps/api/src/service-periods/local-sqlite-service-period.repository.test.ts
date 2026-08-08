@@ -93,4 +93,54 @@ describe("local SQLite service period repository", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it("backfills pilot period summaries and preserves a returned warning", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "care-period-seed-test-"));
+    temporaryDirectories.push(directory);
+    const databasePath = join(directory, "care.sqlite");
+    const elderRepository = new LocalSqliteElderRepository(databasePath);
+    elderRepository.close();
+
+    const periodRepository = new LocalSqliteServicePeriodRepository(
+      databasePath,
+    );
+    const returnedPeriods = await periodRepository.list(
+      "tenant-lanzhou-pilot",
+      "elder-lz-003",
+    );
+    const nextPeriod = await periodRepository.create(
+      "tenant-lanzhou-pilot",
+      "elder-lz-003",
+      {
+        yearMonth: "2026-08",
+        serviceMode: "APPOINTMENT_HOME_VISIT",
+        minimumRecordCount: 4,
+        selfPaidCents: 0,
+        voucherCents: 60000,
+        totalCents: 60000,
+      },
+    );
+    periodRepository.close();
+
+    const reopenedElderRepository = new LocalSqliteElderRepository(
+      databasePath,
+    );
+    const elder = (
+      await reopenedElderRepository.list("tenant-lanzhou-pilot")
+    ).find((record) => record.id === "elder-lz-003");
+    reopenedElderRepository.close();
+
+    expect(returnedPeriods).toHaveLength(1);
+    expect(returnedPeriods[0]).toMatchObject({
+      status: "RETURNED",
+      completedRecordCount: 4,
+      minimumRecordCount: 4,
+    });
+    expect(nextPeriod.outcome).toBe("CREATED");
+    expect(
+      nextPeriod.outcome === "CREATED" ? nextPeriod.record.revision : null,
+    ).toBe(2);
+    expect(elder?.status).toBe("RETURNED");
+    expect(elder?.completedRecords).toBe(4);
+  });
 });

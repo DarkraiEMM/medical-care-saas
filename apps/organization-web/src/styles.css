@@ -469,6 +469,12 @@ dd {
   font-size: 12px;
 }
 
+.period-card .demo-period-note {
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+  color: #8a5b1d;
+}
+
 .period-progress b {
   font-size: 13px;
 }
