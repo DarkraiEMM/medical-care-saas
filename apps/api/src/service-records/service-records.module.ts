@@ -1,12 +1,16 @@
 import { Module } from "@nestjs/common";
 import { DevIdentityGuard } from "../identity/dev-identity.guard.js";
+import { ServiceConfigModule } from "../service-config/service-config.module.js";
+import { ServiceFormModule } from "../service-form/service-form.module.js";
 import { LocalSqliteServiceRecordRepository } from "./local-sqlite-service-record.repository.js";
 import { SERVICE_RECORD_REPOSITORY } from "./service-record-repository.js";
+import { ServiceEvidenceController } from "./service-evidence.controller.js";
 import { ServiceRecordsController } from "./service-records.controller.js";
 import { ServiceRecordsService } from "./service-records.service.js";
 
 @Module({
-  controllers: [ServiceRecordsController],
+  imports: [ServiceConfigModule, ServiceFormModule],
+  controllers: [ServiceRecordsController, ServiceEvidenceController],
   providers: [
     ServiceRecordsService,
     DevIdentityGuard,

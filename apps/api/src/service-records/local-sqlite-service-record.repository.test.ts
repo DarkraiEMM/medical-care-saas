@@ -49,33 +49,48 @@ describe("local SQLite service record repository", () => {
     const firstRepository = new LocalSqliteServiceRecordRepository(
       databasePath,
     );
-    const created = await firstRepository.create("tenant-a", {
-      periodId: periodResult.record.id,
-      occurredAt: "2026-08-08T09:00:00.000Z",
-      startedAt: "2026-08-08T09:00:00.000Z",
-      endedAt: "2026-08-08T10:00:00.000Z",
-      participantIds: ["staff-lz-001"],
-      serviceItemVersionIds: ["item-room-cleaning"],
-      log: "完成居室清洁并检查现场安全。",
-      stages: ["BEFORE", "DURING", "AFTER"],
-      stageNotes: {
-        BEFORE: "确认环境和服务内容",
-        DURING: "完成居室清洁服务",
-        AFTER: "检查结果并由老人确认",
+    const created = await firstRepository.create(
+      "tenant-a",
+      {
+        periodId: periodResult.record.id,
+        occurredAt: "2026-08-08T09:00:00.000Z",
+        startedAt: "2026-08-08T09:00:00.000Z",
+        endedAt: "2026-08-08T10:00:00.000Z",
+        responsibleId: "staff-lz-001",
+        participantIds: ["staff-lz-001"],
+        serviceItemVersionIds: ["item-room-cleaning"],
+        log: "完成居室清洁并检查现场安全。",
+        stages: ["BEFORE", "DURING", "AFTER"],
+        stageNotes: {
+          BEFORE: "确认环境和服务内容",
+          DURING: "完成居室清洁服务",
+          AFTER: "检查结果并由老人确认",
+        },
+        vitalSigns: [],
+        answers: [],
       },
-      vitalSigns: [],
-    });
+      {
+        id: "template-test",
+        name: "测试服务表",
+        version: 3,
+        status: "PUBLISHED",
+        fields: [],
+        updatedAt: "2026-08-08T08:00:00.000Z",
+      },
+    );
     const outside = await firstRepository.create("tenant-a", {
       periodId: periodResult.record.id,
       occurredAt: "2026-09-01T09:00:00.000Z",
       startedAt: "2026-09-01T09:00:00.000Z",
       endedAt: "2026-09-01T10:00:00.000Z",
+      responsibleId: "staff-lz-001",
       participantIds: ["staff-lz-001"],
       serviceItemVersionIds: ["item-room-cleaning"],
       log: "这条记录的日期不属于当前核销月份。",
       stages: ["BEFORE", "DURING", "AFTER"],
       stageNotes: { BEFORE: "准备", DURING: "服务", AFTER: "完成" },
       vitalSigns: [],
+      answers: [],
     });
     firstRepository.close();
 
@@ -89,7 +104,9 @@ describe("local SQLite service record repository", () => {
     expect(created.outcome).toBe("CREATED");
     expect(outside.outcome).toBe("DATE_OUTSIDE_PERIOD");
     expect(records).toHaveLength(1);
+    expect(records[0]?.responsibleId).toBe("staff-lz-001");
     expect(records[0]?.stageNotes.DURING).toBe("完成居室清洁服务");
+    expect(records[0]?.templateSnapshot?.version).toBe(3);
     expect(periods[0]?.completedRecordCount).toBe(1);
     expect(periods[0]?.status).toBe("IN_SERVICE");
   });

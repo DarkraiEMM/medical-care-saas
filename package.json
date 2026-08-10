@@ -8,9 +8,11 @@
   },
   "scripts": {
     "build": "pnpm -r --if-present build",
+    "dev": "node scripts/dev-local.mjs",
     "dev:local": "node scripts/dev-local.mjs",
     "dev:api": "pnpm --filter @care/api dev",
     "dev:web": "pnpm --filter @care/organization-web dev",
+    "demo:reset": "node scripts/reset-local-demo.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "pnpm -r --if-present test",

@@ -1,11 +1,37 @@
 {
-  "description": "医养照护工作人员小程序模拟版本",
+  "description": "医养照护工作人员小程序",
   "miniprogramRoot": "./",
   "compileType": "miniprogram",
   "setting": {
+    "urlCheck": false,
     "es6": true,
     "minified": true,
-    "postcss": true
+    "postcss": true,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "uploadWithSourceMap": true,
+    "enhance": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": [],
+    "condition": false,
+    "swc": false,
+    "disableSWC": true,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
   },
-  "appid": "touristappid"
+  "appid": "wx7fbfe2dfba208358",
+  "simulatorPluginLibVersion": {},
+  "packOptions": {
+    "ignore": [],
+    "include": []
+  },
+  "editorSetting": {}
 }

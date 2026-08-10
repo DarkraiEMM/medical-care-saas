@@ -10,7 +10,7 @@ import { AppModule } from "./app.module.js";
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter(),
+    new FastifyAdapter({ bodyLimit: 8 * 1024 * 1024 }),
     {
       logger: ["error", "warn", "log"],
     },
@@ -20,6 +20,16 @@ async function bootstrap(): Promise<void> {
     origin: [/^http:\/\/(127\.0\.0\.1|localhost):\d+$/],
     methods: ["GET", "POST", "OPTIONS"],
   });
+  app.use(
+    (
+      _request: unknown,
+      response: { setHeader(name: string, value: string): void },
+      next: () => void,
+    ) => {
+      response.setHeader("Cache-Control", "no-store");
+      next();
+    },
+  );
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableShutdownHooks();
 

@@ -1,10 +1,1 @@
-page {
-  background: #f5f1e8;
-  color: #17211b;
-  font-family:
-    "Noto Sans SC", "Source Han Sans SC", "Microsoft YaHei", sans-serif;
-}
-
-button::after {
-  border: none;
-}
+page{background:#f5f1e8;color:#17211b;font-family:"Noto Sans SC","Microsoft YaHei",sans-serif}.page-shell{min-height:100vh;padding:0 28rpx 170rpx}.test-banner{margin:0 -28rpx;padding:13rpx 28rpx;background:#f0dfbf;color:#744d18;font-size:21rpx;font-weight:700}.section-title{padding:34rpx 0 24rpx;border-bottom:2rpx solid #17211b}.section-title .title{display:block;font-family:"Noto Serif SC","Songti SC",serif;font-size:44rpx;font-weight:700}.section-title .sub{display:block;margin-top:9rpx;color:#6a746d;font-size:23rpx}.primary-button{border-radius:3rpx;background:#3f684f!important;color:#fff!important;font-weight:700}.secondary-button{border:2rpx solid #3f684f!important;border-radius:3rpx;background:transparent!important;color:#3f684f!important}.empty-state{padding:100rpx 20rpx;color:#6a746d;text-align:center}.error-box{margin:22rpx 0;padding:18rpx 20rpx;border-left:6rpx solid #b84a3a;background:#f4dfdb;color:#7a302a;font-size:24rpx;line-height:1.6}.error-box text{display:block}.inline-retry{width:max-content;margin:14rpx 0 0;padding:4rpx 22rpx;border:2rpx solid #9a3d33;border-radius:2rpx;background:transparent;color:#7a302a;font-size:22rpx;line-height:2}.inline-retry::after{display:none}.success-box{margin:22rpx 0;padding:18rpx 20rpx;border-left:6rpx solid #3f684f;background:#e1ece3;color:#294b34;font-size:24rpx;line-height:1.65}

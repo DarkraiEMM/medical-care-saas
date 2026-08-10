@@ -1,0 +1,447 @@
+<view class="page-shell" wx:if="{{task}}">
+  <view class="test-banner">演示环境</view>
+  <view class="task-summary"
+    ><text class="elder-name">{{task.elderName}}</text
+    ><view class="service-groups"
+      ><view
+        wx:for="{{serviceGroups}}"
+        wx:for-item="serviceGroup"
+        wx:key="category"
+        class="service-group"
+        ><text>{{serviceGroup.category}}</text
+        ><text>{{serviceGroup.itemsLabel}}</text></view
+      ></view
+    ><view class="team"
+      ><text>服务时间：{{scheduledLabel}}</text
+      ><text>负责人：{{task.responsibleName}}</text
+      ><text>协作人员：{{teamLabel}}</text
+      ><text>第 {{task.revision}} 版</text></view
+    ></view
+  >
+  <view wx:if="{{returnIssues.length}}" class="return-box">
+    <text class="return-title">需要修改</text>
+    <view
+      wx:for="{{returnIssues}}"
+      wx:for-item="issue"
+      wx:key="fieldLabel"
+      class="return-issue {{issue.resolved?'resolved':''}}"
+    >
+      <text
+        >{{issue.stage==='BEFORE'?'服务前':issue.stage==='DURING'?'服务中':'服务后'}}
+        · {{issue.fieldLabel}}</text
+      >
+      <text>{{issue.reason}}</text>
+      <text wx:if="{{issue.resolved}}">当前阶段已重新保存</text>
+    </view>
+  </view>
+  <view
+    wx:if="{{task.status==='PENDING_REVIEW'||task.status==='APPROVED'}}"
+    class="readonly-box"
+    >{{task.status==='APPROVED'?'记录已审核归档，不可修改。':'记录已提交审核，审核完成前不可修改。'}}</view
+  >
+  <view class="stage-tabs"
+    ><button
+      wx:for="{{['BEFORE','DURING','AFTER']}}"
+      wx:key="*this"
+      data-stage="{{item}}"
+      class="stage-tab {{activeStage===item?'active':''}}"
+      bindtap="selectStage"
+    >
+      {{item==='BEFORE'?'服务前':item==='DURING'?'服务中':'服务后'}}<text
+        wx:if="{{stageIssueCounts[item]}}"
+        class="stage-issue-count"
+        >待改 {{stageIssueCounts[item]}}</text
+      ><text class="stage-save-status"
+        >{{task.stages[item]?'已保存':'未填写'}}</text
+      >
+    </button></view
+  >
+  <view class="stage-form"
+    ><view class="form-heading"
+      ><text class="form-heading-title">{{stageLabel}}</text
+      ><text class="form-heading-help"
+        >完成当前阶段后先保存，三个阶段均已保存才能提交</text
+      ></view
+    ><label wx:if="{{stageNoteEnabled}}" class="field"
+      ><text class="field-label"
+        >{{stageNoteLabel}}<text
+          wx:if="{{stageNoteRequired}}"
+          class="required-mark"
+        >
+          必填</text
+        ></text
+      ><textarea
+        class="field-control field-textarea"
+        value="{{note}}"
+        disabled="{{task.status==='PENDING_REVIEW'||task.status==='APPROVED'}}"
+        bindinput="updateNote"
+        maxlength="1000"
+        placeholder="填写现场服务情况"
+      /></label
+    ><label class="field"
+      ><text class="field-label">位置状态</text
+      ><radio-group
+        class="location-options"
+        disabled="{{task.status==='PENDING_REVIEW'||task.status==='APPROVED'}}"
+        bindchange="updateLocation"
+        ><label class="location-option"
+          ><radio
+            value="SIMULATED"
+            checked="{{locationStatus==='SIMULATED'}}"
+          />位置已记录</label
+        ><label class="location-option"
+          ><radio
+            value="DENIED"
+            checked="{{locationStatus==='DENIED'}}"
+          />未取得定位</label
+        ></radio-group
+      ></label
+    >
+    <view wx:if="{{stageBlocks.length}}" class="dynamic-preview">
+      <text class="dynamic-title">本阶段填写内容</text>
+      <block wx:for="{{stageBlocks}}" wx:for-item="block" wx:key="key">
+        <view
+          class="dynamic-block {{block.grouped?'dynamic-field-group':'dynamic-field-single'}}"
+        >
+          <view wx:if="{{block.grouped}}" class="dynamic-group-heading">
+            <text class="dynamic-group-title">{{block.label}}</text>
+            <text class="dynamic-group-help">各项可分别填写</text>
+          </view>
+          <view class="dynamic-group-fields">
+            <view
+              id="field-{{field.id}}"
+              wx:for="{{block.fields}}"
+              wx:for-item="field"
+              wx:key="id"
+              class="dynamic-field {{block.grouped?'dynamic-field-compact':''}} {{field.issueReason||validationFieldId===field.id?'field-needs-attention':''}}"
+            >
+              <view class="dynamic-field-head"
+                ><text class="dynamic-field-title">{{field.label}}</text
+                ><text wx:if="{{field.required}}" class="required-mark"
+                  >必填</text
+                ></view
+              >
+              <text wx:if="{{field.issueReason}}" class="field-issue-reason"
+                >需修改：{{field.issueReason}}</text
+              >
+              <text wx:if="{{field.description}}" class="dynamic-description"
+                >{{field.description}}</text
+              >
+              <view
+                wx:if="{{field.type==='SHORT_TEXT'||field.type==='NUMBER'}}"
+                class="dynamic-number-row"
+                ><input
+                  class="dynamic-control"
+                  type="{{field.type==='NUMBER'?'number':'text'}}"
+                  data-id="{{field.id}}"
+                  value="{{answers[field.id]}}"
+                  disabled="{{task.status==='PENDING_REVIEW'||task.status==='APPROVED'}}"
+                  bindinput="updateAnswer"
+                  placeholder="请输入"
+                /><text wx:if="{{field.unit}}" class="dynamic-number-unit"
+                  >{{field.unit}}</text
+                ></view
+              >
+              <textarea
+                wx:elif="{{field.type==='LONG_TEXT'}}"
+                class="dynamic-control"
+                data-id="{{field.id}}"
+                value="{{answers[field.id]}}"
+                disabled="{{task.status==='PENDING_REVIEW'||task.status==='APPROVED'}}"
+                bindinput="updateAnswer"
+                placeholder="请输入"
+              />
+              <picker
+                wx:elif="{{field.type==='DATE'}}"
+                mode="date"
+                data-id="{{field.id}}"
+                value="{{answers[field.id]}}"
+                disabled="{{task.status==='PENDING_REVIEW'||task.status==='APPROVED'}}"
+                bindchange="updateAnswer"
+                ><view class="picker-value"
+                  >{{answers[field.id]||'选择日期'}}</view
+                ></picker
+              >
+              <picker
+                wx:elif="{{field.type==='TIME'}}"
+                mode="time"
+                data-id="{{field.id}}"
+                value="{{answers[field.id]}}"
+                disabled="{{task.status==='PENDING_REVIEW'||task.status==='APPROVED'}}"
+                bindchange="updateAnswer"
+                ><view class="picker-value"
+                  >{{answers[field.id]||'选择时间'}}</view
+                ></picker
+              >
+              <checkbox-group
+                wx:elif="{{field.type==='MULTI_CHOICE'}}"
+                data-id="{{field.id}}"
+                disabled="{{task.status==='PENDING_REVIEW'||task.status==='APPROVED'}}"
+                bindchange="updateAnswer"
+                class="option-preview"
+                ><label
+                  wx:for="{{field.options}}"
+                  wx:for-item="option"
+                  wx:key="id"
+                  class="option-item"
+                  ><checkbox
+                    value="{{option.id}}"
+                    checked="{{answers[field.id]&&answers[field.id].indexOf(option.id)>=0}}"
+                  />{{option.label}}</label
+                ></checkbox-group
+              >
+              <radio-group
+                wx:elif="{{field.type==='SINGLE_CHOICE'}}"
+                data-id="{{field.id}}"
+                disabled="{{task.status==='PENDING_REVIEW'||task.status==='APPROVED'}}"
+                bindchange="updateAnswer"
+                class="option-preview"
+                ><label
+                  wx:for="{{field.options}}"
+                  wx:for-item="option"
+                  wx:key="id"
+                  class="option-item"
+                  ><radio
+                    value="{{option.id}}"
+                    checked="{{answers[field.id]===option.id}}"
+                  />{{option.label}}</label
+                ></radio-group
+              >
+              <view wx:else class="field-image-control"
+                ><view class="image-grid"
+                  ><view
+                    wx:for="{{field.evidence}}"
+                    wx:for-item="evidence"
+                    wx:key="dataUrl"
+                    class="image-item"
+                    ><image
+                      class="evidence-image"
+                      src="{{evidence.dataUrl}}"
+                      mode="aspectFill"
+                      data-url="{{evidence.dataUrl}}"
+                      bindtap="previewImage"
+                    /><button
+                      wx:if="{{task.status!=='PENDING_REVIEW'&&task.status!=='APPROVED'}}"
+                      class="evidence-remove"
+                      data-id="{{field.id}}"
+                      data-url="{{evidence.dataUrl}}"
+                      bindtap="removeImage"
+                    >
+                      删除
+                    </button></view
+                  ><button
+                    wx:if="{{task.status!=='PENDING_REVIEW'&&task.status!=='APPROVED'}}"
+                    class="upload-tile"
+                    data-id="{{field.id}}"
+                    loading="{{uploading}}"
+                    bindtap="chooseImage"
+                  >
+                    <text class="upload-plus">＋</text
+                    ><text class="upload-title">添加图片</text
+                    ><text class="upload-help">相册或相机，单张不超过5MB</text>
+                  </button></view
+                ><text wx:if="{{uploadFeedback}}" class="upload-feedback"
+                  >{{uploadFeedback}}</text
+                ></view
+              >
+            </view>
+          </view>
+        </view>
+      </block>
+    </view>
+    <view
+      wx:if="{{activeStage==='AFTER'&&feedbackEnabled}}"
+      class="feedback-card"
+      ><view class="feedback-heading"
+        ><text>客户反馈</text><text>反馈方式由现场情况选择</text></view
+      ><label class="field"
+        ><text class="field-label">反馈人</text
+        ><radio-group data-field="evaluatorType" bindchange="updateFeedback"
+          ><label
+            ><radio
+              value="ELDER"
+              checked="{{feedback.evaluatorType==='ELDER'}}"
+            />老人本人</label
+          ><label
+            ><radio
+              value="FAMILY"
+              checked="{{feedback.evaluatorType==='FAMILY'}}"
+            />家属或监护人</label
+          ></radio-group
+        ></label
+      ><label wx:if="{{feedback.evaluatorType==='FAMILY'}}" class="field"
+        ><text class="field-label">与老人的关系</text
+        ><input
+          class="dynamic-control"
+          data-field="relationship"
+          value="{{feedback.relationship}}"
+          bindinput="updateFeedback"
+          placeholder="例如：女儿" /></label
+      ><view wx:if="{{feedbackConfig.satisfaction!=='DISABLED'}}" class="field"
+        ><text class="field-label"
+          >服务满意度<text
+            wx:if="{{feedbackConfig.satisfaction==='REQUIRED'}}"
+            class="required-mark"
+          >
+            必填</text
+          ></text
+        ><radio-group
+          data-field="satisfaction"
+          bindchange="updateFeedback"
+          class="feedback-options"
+          ><label
+            ><radio
+              value="VERY_SATISFIED"
+              checked="{{feedback.satisfaction==='VERY_SATISFIED'}}"
+            />非常满意</label
+          ><label
+            ><radio
+              value="SATISFIED"
+              checked="{{feedback.satisfaction==='SATISFIED'}}"
+            />满意</label
+          ><label
+            ><radio
+              value="AVERAGE"
+              checked="{{feedback.satisfaction==='AVERAGE'}}"
+            />一般</label
+          ><label
+            ><radio
+              value="DISSATISFIED"
+              checked="{{feedback.satisfaction==='DISSATISFIED'}}"
+            />不满意</label
+          ></radio-group
+        ></view
+      ><view wx:if="{{feedbackConfig.tags!=='DISABLED'}}" class="field"
+        ><text class="field-label"
+          >反馈标签<text
+            wx:if="{{feedbackConfig.tags==='REQUIRED'}}"
+            class="required-mark"
+          >
+            必填</text
+          ></text
+        ><checkbox-group
+          bindchange="updateFeedbackTags"
+          class="feedback-options"
+          ><label
+            ><checkbox
+              value="态度亲切"
+              checked="{{feedback.tags.indexOf('态度亲切')>=0}}"
+            />态度亲切</label
+          ><label
+            ><checkbox
+              value="服务细致"
+              checked="{{feedback.tags.indexOf('服务细致')>=0}}"
+            />服务细致</label
+          ><label
+            ><checkbox
+              value="准时到达"
+              checked="{{feedback.tags.indexOf('准时到达')>=0}}"
+            />准时到达</label
+          ><label
+            ><checkbox
+              value="需要改进"
+              checked="{{feedback.tags.indexOf('需要改进')>=0}}"
+            />需要改进</label
+          ></checkbox-group
+        ></view
+      ><label wx:if="{{feedbackConfig.text!=='DISABLED'}}" class="field"
+        ><text class="field-label"
+          >文字反馈<text
+            wx:if="{{feedbackConfig.text==='REQUIRED'}}"
+            class="required-mark"
+          >
+            必填</text
+          ></text
+        ><textarea
+          class="dynamic-control"
+          data-field="text"
+          value="{{feedback.text}}"
+          bindinput="updateFeedback"
+          placeholder="由工作人员如实记录老人或家属的原话"
+        /></label
+      ><view
+        wx:if="{{feedbackConfig.audio!=='DISABLED'}}"
+        class="feedback-media-row"
+        ><view
+          ><text>语音反馈</text
+          ><text
+            >{{feedbackConfig.audio==='REQUIRED'?'必填':'选填'}}</text
+          ></view
+        ><button bindtap="toggleFeedbackRecord">
+          {{feedbackRecording?'结束录音':'开始或重新录音'}}
+        </button></view
+      ><view
+        wx:if="{{feedbackConfig.photo!=='DISABLED'}}"
+        class="feedback-media-row"
+        ><view
+          ><text>反馈照片</text
+          ><text
+            >{{feedbackConfig.photo==='REQUIRED'?'必填':'选填'}} ·
+            不代表宣传授权</text
+          ></view
+        ><button bindtap="chooseFeedbackImage">拍照或选择</button></view
+      ><view
+        wx:if="{{feedbackConfig.signature!=='DISABLED'}}"
+        class="signature-panel"
+        ><view class="field-label"
+          >服务确认签名<text
+            wx:if="{{feedbackConfig.signature==='REQUIRED'}}"
+            class="required-mark"
+          >
+            必填</text
+          ></view
+        ><text class="signature-note"
+          >仅作为本次服务确认记录，不等同于第三方可靠电子签名。</text
+        ><canvas
+          canvas-id="feedbackSignature"
+          class="signature-canvas"
+          bindtouchstart="signatureStart"
+          bindtouchmove="signatureMove"
+          bindtouchend="signatureEnd"
+          disable-scroll="true"
+        ></canvas
+        ><view class="signature-actions"
+          ><button bindtap="clearSignature">清空</button
+          ><button bindtap="saveSignature">保存签名</button></view
+        ></view
+      ><label
+        wx:if="{{feedbackConfig.refusalReason!=='DISABLED'}}"
+        class="field"
+        ><text class="field-label">无法评价或拒绝反馈</text
+        ><textarea
+          class="dynamic-control"
+          data-field="refusalReason"
+          value="{{feedback.refusalReason}}"
+          bindinput="updateFeedback"
+          placeholder="如老人不愿评价，可如实记录原因"
+        /></label
+      ><button class="secondary-button" bindtap="saveFeedback">
+        保存客户反馈
+      </button></view
+    >
+    <view wx:if="{{error}}" class="error-box"><text>{{error}}</text></view
+    ><view wx:if="{{success}}" class="success-box"
+      ><text class="success-message">{{success}}</text
+      ><button class="success-action" bindtap="backToTasks">
+        返回任务列表
+      </button></view
+    ><view
+      wx:if="{{task.status!=='PENDING_REVIEW'&&task.status!=='APPROVED'}}"
+      class="task-action-bar"
+      ><button
+        class="secondary-button"
+        loading="{{saving}}"
+        bindtap="saveStage"
+      >
+        保存当前阶段</button
+      ><button class="primary-button" loading="{{saving}}" bindtap="submitTask">
+        提交审核
+      </button></view
+    >
+  </view> </view
+><view wx:else class="page-shell"
+  ><view wx:if="{{error}}" class="error-box"
+    ><text>{{error}}</text
+    ><button class="inline-retry" bindtap="retry">重新连接</button></view
+  ><view wx:else class="empty-state">正在读取任务…</view></view
+>

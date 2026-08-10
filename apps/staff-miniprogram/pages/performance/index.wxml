@@ -1,0 +1,20 @@
+<view class="page-shell performance-page">
+  <view class="section-title"><text class="title">我的工作与业绩</text><text class="sub">工作记录与积分规则分开呈现，便于核对</text></view>
+  <view wx:if="{{error}}" class="error-box"><text>{{error}}</text><button class="inline-retry" bindtap="retry">重新连接</button></view>
+  <view wx:if="{{loading}}" class="empty-state">正在汇总本月数据…</view>
+  <block wx:elif="{{summary}}">
+    <view class="policy-panel">
+      <view class="policy-head"><view><text class="policy-caption">当前采用</text><text class="policy-name">{{summary.policy.name}}</text></view><text class="policy-score">{{summary.policy.totalPoints}} 分</text></view>
+      <text class="policy-departments">适用岗位：{{summary.policy.sourceDepartmentLabel}}</text>
+      <text class="policy-note">{{summary.policy.calculationNote}}</text>
+    </view>
+    <view class="section-label">本月计算明细</view>
+    <view class="rule-list">
+      <view wx:for="{{summary.policy.lines}}" wx:key="metricCode" class="rule-row">
+        <view class="rule-main"><text class="rule-title">{{item.label}}</text><text class="rule-formula">{{item.quantity}} {{item.unit}} × {{item.pointsPerUnit}} 分</text></view>
+        <text class="rule-points">{{item.points}} 分</text>
+      </view>
+    </view>
+    <view class="workload-note">同一任务按照实际担任的负责人或协作人角色计算一次，不因同时属于多个部门重复计分。</view>
+  </block>
+</view>

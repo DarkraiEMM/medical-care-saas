@@ -1,10 +1,29 @@
 {
-  "pages": ["pages/tasks/index"],
+  "pages": [
+    "pages/tasks/index",
+    "pages/task-detail/index",
+    "pages/attendance/index",
+    "pages/performance/index",
+    "pages/food-trace/index",
+    "pages/corrections/index",
+    "pages/profile/index"
+  ],
   "window": {
-    "navigationBarBackgroundColor": "#17211B",
+    "navigationBarBackgroundColor": "#14211A",
     "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "今日服务",
+    "navigationBarTitleText": "照护工作台",
     "backgroundColor": "#F5F1E8"
+  },
+  "tabBar": {
+    "color": "#6A746D",
+    "selectedColor": "#3F684F",
+    "backgroundColor": "#FAF8F2",
+    "borderStyle": "black",
+    "list": [
+      { "pagePath": "pages/tasks/index", "text": "任务" },
+      { "pagePath": "pages/corrections/index", "text": "待修改" },
+      { "pagePath": "pages/profile/index", "text": "我的" }
+    ]
   },
   "style": "v2",
   "sitemapLocation": "sitemap.json"

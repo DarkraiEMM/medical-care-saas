@@ -63,6 +63,10 @@ model Tenant {
   id             String          @id @default(cuid())
   name           String          @db.VarChar(120)
   status         String          @default("ACTIVE") @db.VarChar(30)
+  validUntil     DateTime?
+  capacityBytes  BigInt          @default(0)
+  usedBytes      BigInt          @default(0)
+  renewalStatus  String          @default("TRIAL") @db.VarChar(30)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   departments    Department[]
@@ -73,6 +77,15 @@ model Tenant {
   catalogItems   TenantServiceItem[]
   auditEvents    AuditEvent[]
   supportGrants  SupportGrant[]
+  contracts      ContractArchive[]
+  subsidyLedgers SubsidyLedger[]
+  promotionAssets PromotionAsset[]
+  foodTraceRecords FoodTraceRecord[]
+  engagements    ServiceEngagement[]
+  archiveRecords ArchiveRecord[]
+  formTemplates  ServiceFormTemplate[]
+  qualifications QualificationRecord[]
+  organizationSetting OrganizationSetting?
 }
 
 model UserAccount {
@@ -168,6 +181,10 @@ model Elder {
   tenant              Tenant          @relation(fields: [tenantId], references: [id])
   contacts            ElderContact[]
   servicePeriods      ServicePeriod[]
+  contracts           ContractArchive[]
+  subsidyLedgers      SubsidyLedger[]
+  promotionAssets     PromotionAsset[]
+  engagements         ServiceEngagement[]
 
   @@unique([tenantId, archiveNo])
   @@index([tenantId, displayName])
@@ -357,6 +374,8 @@ model EvidenceObject {
   capturedAt      DateTime?
   retentionUntil  DateTime?
   legalHold       Boolean               @default(false)
+  isTestData      Boolean               @default(false)
+  uploadedById    String?               @db.VarChar(191)
   createdAt       DateTime              @default(now())
   serviceLinks    ServiceEvidenceLink[]
 
@@ -370,11 +389,14 @@ model ServiceEvidenceLink {
   tenantId    String
   recordId    String
   evidenceId  String
+  stage       ServiceStage
+  templateFieldId String?    @db.VarChar(191)
   sharedByTeam Boolean       @default(false)
   record      ServiceRecord  @relation(fields: [recordId], references: [id])
   evidence    EvidenceObject @relation(fields: [evidenceId], references: [id])
 
   @@unique([tenantId, recordId, evidenceId])
+  @@index([tenantId, recordId, stage, templateFieldId])
 }
 
 model SupportGrant {
@@ -411,4 +433,180 @@ model AuditEvent {
 
   @@index([tenantId, resourceType, resourceId, occurredAt])
   @@index([tenantId, actorUserId, occurredAt])
+}
+
+model ContractArchive {
+  id             String   @id @default(cuid())
+  tenantId       String
+  elderId        String
+  contractNo     String   @db.VarChar(80)
+  type           String   @db.VarChar(100)
+  status         String   @db.VarChar(30)
+  version        Int      @default(1)
+  originalFileId String?
+  signedAt       DateTime?
+  validUntil     DateTime?
+  archivedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  elder          Elder    @relation(fields: [elderId], references: [id])
+
+  @@unique([tenantId, contractNo, version])
+  @@index([tenantId, elderId, status])
+}
+
+model SubsidyLedger {
+  id             String   @id @default(cuid())
+  tenantId       String
+  elderId        String
+  yearMonth      String   @db.Char(7)
+  status         String   @db.VarChar(30)
+  recordCount    Int      @default(0)
+  selfPaidCents  Int      @default(0)
+  voucherCents   Int      @default(0)
+  totalCents     Int      @default(0)
+  packageFileId  String?
+  externalResult String?  @db.VarChar(60)
+  externalReason String?  @db.VarChar(500)
+  submittedAt    DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  elder          Elder    @relation(fields: [elderId], references: [id])
+
+  @@unique([tenantId, elderId, yearMonth])
+  @@index([tenantId, yearMonth, status])
+}
+
+model PromotionAsset {
+  id               String   @id @default(cuid())
+  tenantId         String
+  elderId          String?
+  sourceEvidenceId String?
+  title            String   @db.VarChar(160)
+  consentStatus    String   @db.VarChar(30)
+  reviewStatus     String   @db.VarChar(30)
+  downloadable     Boolean  @default(false)
+  selectedById     String
+  selectedAt       DateTime @default(now())
+  reviewedById     String?
+  reviewedAt       DateTime?
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  elder            Elder?   @relation(fields: [elderId], references: [id])
+
+  @@index([tenantId, reviewStatus, selectedAt])
+  @@index([tenantId, elderId])
+}
+
+model FoodTraceRecord {
+  id            String   @id @default(cuid())
+  tenantId      String
+  serviceDate   DateTime
+  ingredient    String   @db.VarChar(120)
+  supplier      String   @db.VarChar(180)
+  batchNo       String   @db.VarChar(100)
+  certificate   String?  @db.VarChar(300)
+  responsibleId String
+  status        String   @db.VarChar(30)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, serviceDate, ingredient])
+  @@index([tenantId, batchNo])
+}
+
+model ServiceEngagement {
+  id            String   @id @default(cuid())
+  tenantId      String
+  elderId       String
+  mode          String   @db.VarChar(50)
+  status        String   @db.VarChar(30)
+  responsibleId String?
+  frequencyJson Json
+  startsAt      DateTime
+  endsAt        DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  elder         Elder    @relation(fields: [elderId], references: [id])
+
+  @@index([tenantId, elderId, status])
+  @@index([tenantId, mode, startsAt])
+}
+
+model ArchiveRecord {
+  id             String   @id @default(cuid())
+  tenantId       String
+  category       String   @db.VarChar(60)
+  title          String   @db.VarChar(200)
+  resourceType   String   @db.VarChar(80)
+  resourceId     String   @db.VarChar(191)
+  retentionUntil DateTime?
+  legalHold      Boolean  @default(false)
+  exportStatus   String   @db.VarChar(30)
+  exportedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, category, updatedAt])
+  @@index([tenantId, retentionUntil, legalHold])
+}
+
+model ServiceFormTemplate {
+  id          String                       @id @default(cuid())
+  tenantId    String
+  name        String                       @db.VarChar(120)
+  status      String                       @db.VarChar(30)
+  createdAt   DateTime                     @default(now())
+  updatedAt   DateTime                     @updatedAt
+  tenant      Tenant                       @relation(fields: [tenantId], references: [id])
+  versions    ServiceFormTemplateVersion[]
+
+  @@index([tenantId, status])
+}
+
+model ServiceFormTemplateVersion {
+  id          String              @id @default(cuid())
+  templateId  String
+  version     Int
+  status      String              @db.VarChar(30)
+  schemaJson  Json
+  publishedAt DateTime?
+  createdById String
+  createdAt   DateTime            @default(now())
+  template    ServiceFormTemplate @relation(fields: [templateId], references: [id])
+
+  @@unique([templateId, version])
+}
+
+model QualificationRecord {
+  id           String   @id @default(cuid())
+  tenantId     String
+  code         String   @db.VarChar(80)
+  name         String   @db.VarChar(160)
+  status       String   @db.VarChar(30)
+  documentId   String?
+  validUntil   DateTime?
+  reviewedById String?
+  reviewedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, code])
+  @@index([tenantId, status, validUntil])
+}
+
+model OrganizationSetting {
+  tenantId                String   @id
+  locationRadiusMeters    Int      @default(300)
+  timeToleranceMinutes    Int      @default(30)
+  evidenceRetentionYears Int      @default(3)
+  contractRetentionRule  String   @db.VarChar(60)
+  configJson              Json
+  updatedAt               DateTime @updatedAt
+  tenant                  Tenant   @relation(fields: [tenantId], references: [id])
 }

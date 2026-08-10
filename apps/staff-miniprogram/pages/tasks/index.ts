@@ -1,36 +1,107 @@
-interface TaskItem {
+import { checkHealth, request } from "../../utils/api";
+
+type Task = {
   id: string;
   elderName: string;
-  time: string;
-  serviceItems: string;
-  progress: string;
-  status: "待开始" | "进行中" | "待补正";
-}
+  scheduledAt: string;
+  serviceItems: string[];
+  stageProgress: number;
+  status: string;
+  participantIds: string[];
+  participantNames?: string[];
+  responsibleName?: string;
+  revision: number;
+};
+const labels: Record<string, string> = {
+  NOT_STARTED: "待开始",
+  IN_PROGRESS: "服务中",
+  PENDING_REVIEW: "待审核",
+  RETURNED: "待修改",
+  APPROVED: "已完成",
+};
 
 Page({
   data: {
-    dateLabel: "8 月 8 日 · 星期六",
-    tasks: [
-      {
-        id: "demo-task-1",
-        elderName: "张奶奶（模拟）",
-        time: "09:30",
-        serviceItems: "居室清洁、物品整理",
-        progress: "0 / 3 阶段",
-        status: "待开始",
-      },
-      {
-        id: "demo-task-2",
-        elderName: "李爷爷（模拟）",
-        time: "14:00",
-        serviceItems: "测量血压、陪同散步",
-        progress: "2 / 3 阶段",
-        status: "进行中",
-      },
-    ] as TaskItem[],
+    tasks: [] as Array<
+      Task & {
+        date: string;
+        time: string;
+        statusLabel: string;
+        serviceItemsLabel: string;
+        teamLabel: string;
+      }
+    >,
+    taskGroups: [] as Array<{
+      date: string;
+      tasks: Array<Task & {
+        date: string;
+        time: string;
+        statusLabel: string;
+        serviceItemsLabel: string;
+        teamLabel: string;
+      }>;
+    }>,
+    loading: true,
+    error: "",
+    taskStats: { notStarted: 0, inProgress: 0, returned: 0 },
   },
-  openTask(event: WechatMiniprogram.BaseEvent): void {
-    const taskId = String(event.currentTarget.dataset.id ?? "");
-    wx.showToast({ title: `模拟任务 ${taskId.slice(-1)}`, icon: "none" });
+  onShow() {
+    void this.loadTasks();
+  },
+  async loadTasks() {
+    this.setData({ loading: true, error: "" });
+    try {
+      await checkHealth();
+      const tasks = await request<Task[]>("/staff/tasks");
+      const mapped = tasks.map((task) => {
+        const collaborators = (task.participantNames || []).filter(
+          (name) => name !== task.responsibleName,
+        );
+        return {
+          ...task,
+          date: new Date(task.scheduledAt).toLocaleDateString("zh-CN", {
+            month: "long",
+            day: "numeric",
+            timeZone: "Asia/Shanghai",
+          }),
+          time: new Date(task.scheduledAt).toLocaleTimeString("zh-CN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+            timeZone: "Asia/Shanghai",
+          }),
+          statusLabel: labels[task.status] || "状态待确认",
+          serviceItemsLabel: task.serviceItems.join("、"),
+          teamLabel: collaborators.length ? collaborators.join("、") : "无协作人员",
+        };
+      });
+      const taskGroups = mapped.reduce(
+        (groups: Array<{ date: string; tasks: typeof mapped }>, task) => {
+          const group = groups.find((item) => item.date === task.date);
+          if (group) group.tasks.push(task);
+          else groups.push({ date: task.date, tasks: [task] });
+          return groups;
+        },
+        [],
+      );
+      this.setData({
+        tasks: mapped,
+        taskGroups,
+        loading: false,
+        taskStats: {
+          notStarted: mapped.filter((task) => task.status === "NOT_STARTED").length,
+          inProgress: mapped.filter((task) => task.status === "IN_PROGRESS").length,
+          returned: mapped.filter((task) => task.status === "RETURNED").length,
+        },
+      });
+    } catch (error) {
+      this.setData({
+        error: error instanceof Error ? error.message : "任务加载失败",
+        loading: false,
+      });
+    }
+  },
+  retry() {
+    void this.loadTasks();
   },
 });
