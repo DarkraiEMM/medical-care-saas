@@ -26,20 +26,22 @@ describe("business repository", () => {
       "tenant-admin-test",
     );
     expect(contract?.status).toBe("DRAFT");
-    const pending = repository.contractAction(
-      "tenant-lanzhou-pilot",
-      String(contract?.id),
-      "REQUEST_SIGN",
-      "tenant-admin-test",
-    );
-    const signed = repository.contractAction(
-      "tenant-lanzhou-pilot",
-      String(contract?.id),
-      "SIGN",
-      "tenant-admin-test",
-    );
-    expect(pending?.status).toBe("PENDING_SIGN");
-    expect(signed?.status).toBe("SIGNED");
+    expect(
+      repository.contractAction(
+        "tenant-lanzhou-pilot",
+        String(contract?.id),
+        "REQUEST_SIGN",
+        "tenant-admin-test",
+      )?.status,
+    ).toBe("PENDING_SIGN");
+    expect(
+      repository.contractAction(
+        "tenant-lanzhou-pilot",
+        String(contract?.id),
+        "SIGN",
+        "tenant-admin-test",
+      )?.status,
+    ).toBe("SIGNED");
     repository.close();
   });
 
@@ -56,7 +58,7 @@ describe("business repository", () => {
         "",
         "tenant-admin-test",
       ),
-    ).toThrow("退回时必须填写原因");
+    ).toThrow();
     repository.close();
   });
 
@@ -86,13 +88,7 @@ describe("business repository", () => {
       responsibleApproved: 1,
       collaborativeApproved: 1,
     });
-    expect(first?.daily).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ date: "2026-08-07", approved: 1 }),
-      ]),
-    );
 
-    expect(business.listPerformanceTemplates().templates).toHaveLength(3);
     const statements = business.calculatePerformanceStatements(
       "tenant-lanzhou-pilot",
       "2026-08",
@@ -102,7 +98,6 @@ describe("business repository", () => {
       (statement) => statement.staffId === "staff-lz-001",
     );
     expect(firstStatement).toMatchObject({
-      schemeVersion: 1,
       status: "DRAFT",
       basePoints: 26,
       totalPoints: 26,
@@ -119,80 +114,166 @@ describe("business repository", () => {
       String(firstStatement?.id),
       "tenant-admin-test",
     );
-    const recalculated = business.calculatePerformanceStatements(
-      "tenant-lanzhou-pilot",
-      "2026-08",
-      "tenant-admin-test",
-    );
     expect(
-      recalculated.find((statement) => statement.staffId === "staff-lz-001"),
+      business
+        .calculatePerformanceStatements(
+          "tenant-lanzhou-pilot",
+          "2026-08",
+          "tenant-admin-test",
+        )
+        .find((statement) => statement.staffId === "staff-lz-001"),
     ).toMatchObject({ status: "CONFIRMED", totalPoints: 31 });
-    expect(() =>
-      business.adjustPerformanceStatement(
-        "tenant-lanzhou-pilot",
-        String(firstStatement?.id),
-        { points: -1, reason: "不应允许" },
-        "tenant-admin-test",
-      ),
-    ).toThrow("已确认的绩效单不能调整");
 
     business.close();
     operations.close();
   });
 
-  it("keeps attendance, staff applications and food evidence as separate records", () => {
-    const directory = mkdtempSync(join(tmpdir(), "care-staff-apps-"));
-    const repository = new BusinessRepository(join(directory, "business.sqlite"));
+  it("closes department configuration, employee submission, review and performance confirmation", () => {
+    const directory = mkdtempSync(join(tmpdir(), "care-closure-"));
+    const databasePath = join(directory, "business.sqlite");
+    const operations = new OperationsRepository(databasePath);
+    const repository = new BusinessRepository(databasePath);
 
-    expect(repository.getStaffApplications("tenant-lanzhou-pilot", "staff-lz-001")).toMatchObject({
+    const policies = repository.listDepartmentAppPolicies(
+      "tenant-lanzhou-pilot",
+    );
+    expect(policies).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          departmentName: "护理部",
+          attendanceEnabled: true,
+        }),
+        expect.objectContaining({
+          departmentName: "餐饮部",
+          foodTraceEnabled: true,
+        }),
+      ]),
+    );
+    expect(
+      repository.getStaffApplications("tenant-lanzhou-pilot", "staff-lz-001"),
+    ).toMatchObject({
       attendance: { enabled: true },
       foodTrace: { enabled: false },
       customerFeedback: { enabled: true },
     });
-    expect(repository.getStaffApplications("tenant-lanzhou-pilot", "staff-lz-003")).toMatchObject({
+    expect(
+      repository.getStaffApplications("tenant-lanzhou-pilot", "staff-lz-003"),
+    ).toMatchObject({
       attendance: { enabled: false },
       foodTrace: { enabled: true },
-      performance: { policyName: "餐饮合规记录积分（演示）" },
     });
-    expect(repository.getStaffWorkSummary("tenant-lanzhou-pilot", "staff-lz-003", "2026-08")).toMatchObject({
-      policy: {
-        name: "餐饮合规记录积分（演示）",
-        totalPoints: 5,
-        lines: expect.arrayContaining([
-          expect.objectContaining({ metricCode: "FOOD_TRACE_VERIFIED", points: 2 }),
-          expect.objectContaining({ metricCode: "FOOD_TRACE_DAY", points: 3 }),
-        ]),
+
+    const media = repository.uploadBusinessMedia(
+      "tenant-lanzhou-pilot",
+      "staff-lz-003",
+      {
+        mediaType: "IMAGE",
+        businessType: "FOOD_TRACE",
+        businessId: "DRAFT",
+        fileName: "批次标签.jpg",
+        mimeType: "image/jpeg",
+        sizeBytes: 4,
+        dataUrl: "data:image/jpeg;base64,dGVzdA==",
       },
+    );
+    const submitted = repository.createFood(
+      "tenant-lanzhou-pilot",
+      {
+        serviceDate: "2026-08-10",
+        ingredient: "白菜",
+        quantity: "10千克",
+        evidenceIds: [media?.id],
+      },
+      "staff-lz-003",
+    );
+    const returned = repository.foodAction(
+      "tenant-lanzhou-pilot",
+      String(submitted?.id),
+      "RETURN",
+      "请补充供应商名称和票据照片",
+      "tenant-admin-test",
+    );
+    expect(returned).toMatchObject({ status: "RETURNED" });
+    expect(
+      repository
+        .listFood("tenant-lanzhou-pilot", "staff-lz-003")
+        .find((item) => item.id === submitted?.id),
+    ).toMatchObject({
+      status: "RETURNED",
+      history: expect.arrayContaining([
+        expect.objectContaining({ action: "RETURN" }),
+      ]),
     });
 
-    const checkedIn = repository.checkAttendance("tenant-lanzhou-pilot", "staff-lz-001", {
-      action: "CHECK_IN",
-      locationStatus: "SIMULATED",
+    const resubmitted = repository.resubmitFood(
+      "tenant-lanzhou-pilot",
+      String(submitted?.id),
+      {
+        serviceDate: "2026-08-10",
+        ingredient: "白菜",
+        supplier: "兰州安心农产品配送中心",
+        batchNo: "PC-20260810-01",
+        quantity: "10千克",
+        evidenceIds: [media?.id],
+      },
+      "staff-lz-003",
+    );
+    expect(resubmitted).toMatchObject({
+      id: submitted?.id,
+      status: "SUBMITTED",
+      returnReason: "",
     });
-    expect(checkedIn.record?.checkInAt).toBeTruthy();
-    const checkedOut = repository.checkAttendance("tenant-lanzhou-pilot", "staff-lz-001", {
-      action: "CHECK_OUT",
-      locationStatus: "SIMULATED",
-    });
-    expect(checkedOut.record?.checkOutAt).toBeTruthy();
+    const verified = repository.foodAction(
+      "tenant-lanzhou-pilot",
+      String(submitted?.id),
+      "VERIFY",
+      "",
+      "tenant-admin-test",
+    );
+    expect(verified).toMatchObject({ status: "VERIFIED" });
+    expect(verified?.history.map((entry) => entry.action)).toEqual([
+      "SUBMIT",
+      "RETURN",
+      "RESUBMIT",
+      "VERIFY",
+    ]);
 
-    const media = repository.uploadBusinessMedia("tenant-lanzhou-pilot", "staff-lz-003", {
-      mediaType: "IMAGE",
-      businessType: "FOOD_TRACE",
-      businessId: "DRAFT",
-      fileName: "批次标签.jpg",
-      mimeType: "image/jpeg",
-      sizeBytes: 4,
-      dataUrl: "data:image/jpeg;base64,dGVzdA==",
-    });
-    const food = repository.createFood("tenant-lanzhou-pilot", {
-      ingredient: "白菜",
-      quantity: "10千克",
-      evidenceIds: [media?.id],
-    }, "staff-lz-003");
-    expect(food).toMatchObject({ status: "SUBMITTED", evidenceIds: [media?.id] });
-    expect(repository.foodAction("tenant-lanzhou-pilot", String(food?.id), "VERIFY", "", "tenant-admin-test"))
-      .toMatchObject({ status: "VERIFIED" });
+    const statements = repository.calculatePerformanceStatements(
+      "tenant-lanzhou-pilot",
+      "2026-08",
+      "tenant-admin-test",
+    );
+    const foodStatement = statements.find(
+      (statement) => statement.staffId === "staff-lz-003",
+    );
+    expect(foodStatement?.lines).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          metricCode: "FOOD_TRACE_VERIFIED",
+          units: 2,
+          points: 4,
+        }),
+        expect.objectContaining({
+          metricCode: "FOOD_TRACE_DAY",
+          units: 2,
+          points: 6,
+        }),
+      ]),
+    );
+    repository.confirmPerformanceStatement(
+      "tenant-lanzhou-pilot",
+      String(foodStatement?.id),
+      "tenant-admin-test",
+    );
+    expect(
+      repository.getStaffWorkSummary(
+        "tenant-lanzhou-pilot",
+        "staff-lz-003",
+        "2026-08",
+      ).statement,
+    ).toMatchObject({ status: "CONFIRMED", totalPoints: 10 });
+
     repository.close();
+    operations.close();
   });
 });

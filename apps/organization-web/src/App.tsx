@@ -284,7 +284,11 @@ const navigationGroups: Array<{
     items: [
       { label: "组织与员工", icon: Building2, view: "organization" },
       { label: "工作量与质量", icon: ClipboardList, view: "performance" },
-      { label: "绩效管理", icon: ClipboardList, view: "performance-management" },
+      {
+        label: "绩效管理",
+        icon: ClipboardList,
+        view: "performance-management",
+      },
       { label: "宣传素材", icon: Images, view: "promotion" },
       { label: "食品追溯", icon: Utensils, view: "food" },
       { label: "数据归档与导出", icon: DatabaseBackup, view: "archives" },
@@ -325,6 +329,7 @@ const emptyBusinessData: BusinessData = {
   food: [],
   engagements: [],
   archives: [],
+  departmentPolicies: [],
   settings: {},
 };
 
@@ -465,7 +470,9 @@ export function App() {
     }
     setPageError("");
     const matchedNavigation = navigationGroups
-      .flatMap((group) => group.items.map((item) => ({ ...item, group: group.group })))
+      .flatMap((group) =>
+        group.items.map((item) => ({ ...item, group: group.group })),
+      )
       .find((item) => item.view && item.label.toLowerCase().includes(keyword));
     if (matchedNavigation?.view) {
       setExpandedNavigation((current) =>
@@ -489,7 +496,9 @@ export function App() {
       return;
     }
     const task = operationTasks.find((item) =>
-      `${item.elderName}${item.serviceItems.join("")}`.toLowerCase().includes(keyword),
+      `${item.elderName}${item.serviceItems.join("")}`
+        .toLowerCase()
+        .includes(keyword),
     );
     if (task) {
       setExpandedNavigation((current) =>
@@ -519,6 +528,7 @@ export function App() {
       "performance-schemes",
       `sales-records?month=${new Date().toISOString().slice(0, 7)}`,
       `performance-statements?month=${new Date().toISOString().slice(0, 7)}`,
+      "department-app-policies",
     ];
     const responses = await Promise.all(
       endpoints.map((endpoint) =>
@@ -547,7 +557,9 @@ export function App() {
       performanceTemplates: values[11] as BusinessData["performanceTemplates"],
       performanceSchemes: values[12] as BusinessData["performanceSchemes"],
       sales: values[13] as BusinessData["sales"],
-      performanceStatements: values[14] as BusinessData["performanceStatements"],
+      performanceStatements:
+        values[14] as BusinessData["performanceStatements"],
+      departmentPolicies: values[15] as BusinessData["departmentPolicies"],
     });
   }, []);
 
@@ -671,7 +683,9 @@ export function App() {
     const task = operationTasks.find((item) => item.id === taskId);
     const stage = reviewStage[taskId] || "AFTER";
     const fieldId = reviewField[taskId] || undefined;
-    const field = task?.templateSnapshot?.fields.find((item) => item.id === fieldId);
+    const field = task?.templateSnapshot?.fields.find(
+      (item) => item.id === fieldId,
+    );
     const reason = reviewReason[taskId] || "";
     const response = await fetch(
       `${apiBaseUrl}/organization/operations/tasks/${taskId}/review`,
@@ -687,7 +701,9 @@ export function App() {
                   {
                     stage,
                     fieldId,
-                    fieldLabel: field?.label || `${stage === "BEFORE" ? "服务前" : stage === "DURING" ? "服务中" : "服务后"}记录`,
+                    fieldLabel:
+                      field?.label ||
+                      `${stage === "BEFORE" ? "服务前" : stage === "DURING" ? "服务中" : "服务后"}记录`,
                     reason,
                     resolved: false,
                   },
@@ -1196,18 +1212,18 @@ export function App() {
               </button>
               {expandedNavigation.includes(section.group)
                 ? section.items.map(({ label, icon: Icon, view }) => (
-                <button
-                  className={
-                    view === activeView ? "nav-item active" : "nav-item"
-                  }
-                  key={label}
-                  type="button"
-                  disabled={!view}
-                  onClick={() => view && setActiveView(view)}
-                >
-                  <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
-                  <span>{label}</span>
-                </button>
+                    <button
+                      className={
+                        view === activeView ? "nav-item active" : "nav-item"
+                      }
+                      key={label}
+                      type="button"
+                      disabled={!view}
+                      onClick={() => view && setActiveView(view)}
+                    >
+                      <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
+                      <span>{label}</span>
+                    </button>
                   ))
                 : null}
             </section>
@@ -1239,7 +1255,11 @@ export function App() {
               <strong>业务服务尚未连接</strong>
               <span>请先运行“启动本地演示”，服务恢复后无需刷新页面。</span>
             </div>
-            <button type="button" disabled={isLoading} onClick={() => void initialize()}>
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={() => void initialize()}
+            >
               {isLoading ? "正在连接…" : "重新连接"}
             </button>
           </section>
@@ -1305,7 +1325,11 @@ export function App() {
                         key={task.id}
                         type="button"
                         onClick={() => {
-                          setReviewFilter(task.status === "RETURNED" ? "RETURNED" : "PENDING_REVIEW");
+                          setReviewFilter(
+                            task.status === "RETURNED"
+                              ? "RETURNED"
+                              : "PENDING_REVIEW",
+                          );
                           setActiveView("services");
                         }}
                       >
@@ -1354,7 +1378,9 @@ export function App() {
                   </div>
                   <div>
                     <dt>当前套餐</dt>
-                    <dd>{operationOverview?.tenant.subscription.planName ?? "-"}</dd>
+                    <dd>
+                      {operationOverview?.tenant.subscription.planName ?? "-"}
+                    </dd>
                   </div>
                   <div>
                     <dt>容量</dt>
@@ -1519,10 +1545,22 @@ export function App() {
                         <strong>待修改内容</strong>
                         {(task.returnIssues?.length
                           ? task.returnIssues
-                          : [{ stage: "AFTER", fieldLabel: "阶段记录", reason: task.returnReason, resolved: false }]
+                          : [
+                              {
+                                stage: "AFTER",
+                                fieldLabel: "阶段记录",
+                                reason: task.returnReason,
+                                resolved: false,
+                              },
+                            ]
                         ).map((issue, index) => (
                           <span key={`${issue.fieldLabel}-${index}`}>
-                            {issue.stage === "BEFORE" ? "服务前" : issue.stage === "DURING" ? "服务中" : "服务后"} · {issue.fieldLabel}：{issue.reason}
+                            {issue.stage === "BEFORE"
+                              ? "服务前"
+                              : issue.stage === "DURING"
+                                ? "服务中"
+                                : "服务后"}{" "}
+                            · {issue.fieldLabel}：{issue.reason}
                             {issue.resolved ? "（员工已修改）" : ""}
                           </span>
                         ))}
@@ -1552,41 +1590,100 @@ export function App() {
                     </div>
                     {task.customerFeedback ? (
                       <section className="customer-feedback-review">
-                        <header><strong>客户反馈</strong><span>{task.customerFeedback.evaluatorType === "FAMILY" ? `家属或监护人 · ${task.customerFeedback.relationship || "关系未填"}` : "老人本人"}</span></header>
+                        <header>
+                          <strong>客户反馈</strong>
+                          <span>
+                            {task.customerFeedback.evaluatorType === "FAMILY"
+                              ? `家属或监护人 · ${task.customerFeedback.relationship || "关系未填"}`
+                              : "老人本人"}
+                          </span>
+                        </header>
                         <div className="feedback-review-grid">
-                          <span>满意度：{{ VERY_SATISFIED: "非常满意", SATISFIED: "满意", AVERAGE: "一般", DISSATISFIED: "不满意" }[task.customerFeedback.satisfaction] || "未选择"}</span>
-                          <span>反馈材料：{task.customerFeedback.mediaIds.length} 份</span>
-                          <span>标签：{task.customerFeedback.tags.join("、") || "未选择"}</span>
+                          <span>
+                            满意度：
+                            {{
+                              VERY_SATISFIED: "非常满意",
+                              SATISFIED: "满意",
+                              AVERAGE: "一般",
+                              DISSATISFIED: "不满意",
+                            }[task.customerFeedback.satisfaction] || "未选择"}
+                          </span>
+                          <span>
+                            反馈材料：{task.customerFeedback.mediaIds.length} 份
+                          </span>
+                          <span>
+                            标签：
+                            {task.customerFeedback.tags.join("、") || "未选择"}
+                          </span>
                         </div>
-                        {task.customerFeedback.text ? <p>{task.customerFeedback.text}</p> : null}
-                        {task.customerFeedback.refusalReason ? <p className="feedback-refusal">无法评价或拒绝原因：{task.customerFeedback.refusalReason}</p> : null}
+                        {task.customerFeedback.text ? (
+                          <p>{task.customerFeedback.text}</p>
+                        ) : null}
+                        {task.customerFeedback.refusalReason ? (
+                          <p className="feedback-refusal">
+                            无法评价或拒绝原因：
+                            {task.customerFeedback.refusalReason}
+                          </p>
+                        ) : null}
                         {task.customerFeedback.media?.length ? (
                           <div className="feedback-materials">
-                            {task.customerFeedback.media.map((item) => item.mediaType === "AUDIO" ? (
-                              <audio key={item.id} controls preload="none" src={item.dataUrl} />
-                            ) : (
-                              <a key={item.id} href={item.dataUrl} target="_blank" rel="noreferrer" title={item.mediaType === "SIGNATURE" ? "查看服务确认签名" : "查看反馈照片"}>
-                                <img src={item.dataUrl} alt={item.mediaType === "SIGNATURE" ? "服务确认签名" : item.fileName || "反馈照片"} />
-                                <span>{item.mediaType === "SIGNATURE" ? "服务确认签名" : "反馈照片"}</span>
-                              </a>
-                            ))}
+                            {task.customerFeedback.media.map((item) =>
+                              item.mediaType === "AUDIO" ? (
+                                <audio
+                                  key={item.id}
+                                  controls
+                                  preload="none"
+                                  src={item.dataUrl}
+                                />
+                              ) : (
+                                <a
+                                  key={item.id}
+                                  href={item.dataUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  title={
+                                    item.mediaType === "SIGNATURE"
+                                      ? "查看服务确认签名"
+                                      : "查看反馈照片"
+                                  }
+                                >
+                                  <img
+                                    src={item.dataUrl}
+                                    alt={
+                                      item.mediaType === "SIGNATURE"
+                                        ? "服务确认签名"
+                                        : item.fileName || "反馈照片"
+                                    }
+                                  />
+                                  <span>
+                                    {item.mediaType === "SIGNATURE"
+                                      ? "服务确认签名"
+                                      : "反馈照片"}
+                                  </span>
+                                </a>
+                              ),
+                            )}
                           </div>
                         ) : null}
                       </section>
                     ) : null}
                     {(task.history?.length ?? 0) > 0 ? (
                       <details className="task-history">
-                        <summary>查看处理记录（{task.history?.length}）</summary>
+                        <summary>
+                          查看处理记录（{task.history?.length}）
+                        </summary>
                         <ol>
                           {task.history?.map((entry, index) => (
                             <li key={`${entry.createdAt}-${index}`}>
-                              <time>{new Intl.DateTimeFormat("zh-CN", {
-                                timeZone: "Asia/Shanghai",
-                                month: "numeric",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              }).format(new Date(entry.createdAt))}</time>
+                              <time>
+                                {new Intl.DateTimeFormat("zh-CN", {
+                                  timeZone: "Asia/Shanghai",
+                                  month: "numeric",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }).format(new Date(entry.createdAt))}
+                              </time>
                               <span>
                                 {entry.status === "RETURNED"
                                   ? "退回修改"
@@ -1597,7 +1694,9 @@ export function App() {
                                       : "更新服务记录"}
                                 · 第 {entry.revision} 版
                               </span>
-                              {entry.reason ? <small>{entry.reason}</small> : null}
+                              {entry.reason ? (
+                                <small>{entry.reason}</small>
+                              ) : null}
                             </li>
                           ))}
                         </ol>
@@ -1610,18 +1709,17 @@ export function App() {
                             <span>退回阶段</span>
                             <select
                               value={reviewStage[task.id] || "AFTER"}
-                              onChange={(event) =>
-                                {
-                                  setReviewStage((current) => ({
-                                    ...current,
-                                    [task.id]: event.target.value as "BEFORE" | "DURING" | "AFTER",
-                                  }));
-                                  setReviewField((current) => ({
-                                    ...current,
-                                    [task.id]: "",
-                                  }));
-                                }
-                              }
+                              onChange={(event) => {
+                                setReviewStage((current) => ({
+                                  ...current,
+                                  [task.id]: event.target.value as
+                                    "BEFORE" | "DURING" | "AFTER",
+                                }));
+                                setReviewField((current) => ({
+                                  ...current,
+                                  [task.id]: "",
+                                }));
+                              }}
                             >
                               <option value="BEFORE">服务前</option>
                               <option value="DURING">服务中</option>
@@ -1647,7 +1745,9 @@ export function App() {
                                     (reviewStage[task.id] || "AFTER"),
                                 )
                                 .map((field) => (
-                                  <option value={field.id} key={field.id}>{field.label}</option>
+                                  <option value={field.id} key={field.id}>
+                                    {field.label}
+                                  </option>
                                 ))}
                             </select>
                           </label>
@@ -1775,7 +1875,9 @@ export function App() {
                 <BadgeCheck size={22} />
                 <div>
                   <h2>上传材料后由平台完成审核</h2>
-                  <p>机构只能提交材料和查看结果，不能自行修改审核状态。审核通过后，相关专业服务才可启用。</p>
+                  <p>
+                    机构只能提交材料和查看结果，不能自行修改审核状态。审核通过后，相关专业服务才可启用。
+                  </p>
                 </div>
               </div>
               <div className="qualification-page-list">
@@ -1784,11 +1886,25 @@ export function App() {
                     <div>
                       <strong>{item.name}</strong>
                       <span>{item.mockDocumentName || "尚未上传材料"}</span>
-                      {item.rejectionReason ? <span className="qualification-reason">退回原因：{item.rejectionReason}</span> : null}
+                      {item.rejectionReason ? (
+                        <span className="qualification-reason">
+                          退回原因：{item.rejectionReason}
+                        </span>
+                      ) : null}
                     </div>
                     <div className="qualification-actions">
                       <mark data-tone={item.status}>
-                        {item.status === "APPROVED" ? "审核通过" : item.status === "PENDING" ? "待平台审核" : item.status === "REJECTED" ? "已退回" : item.status === "EXPIRED" ? "已过期" : item.uploadStatus === "UPLOADED" ? "已上传，待提交" : "未上传"}
+                        {item.status === "APPROVED"
+                          ? "审核通过"
+                          : item.status === "PENDING"
+                            ? "待平台审核"
+                            : item.status === "REJECTED"
+                              ? "已退回"
+                              : item.status === "EXPIRED"
+                                ? "已过期"
+                                : item.uploadStatus === "UPLOADED"
+                                  ? "已上传，待提交"
+                                  : "未上传"}
                       </mark>
                       <label className="qualification-upload">
                         选择文件
@@ -1797,14 +1913,19 @@ export function App() {
                           accept=".pdf,.jpg,.jpeg,.png"
                           onChange={(event) => {
                             const file = event.target.files?.[0];
-                            if (file) void uploadQualification(item.code, file.name);
+                            if (file)
+                              void uploadQualification(item.code, file.name);
                             event.currentTarget.value = "";
                           }}
                         />
                       </label>
                       <button
                         type="button"
-                        disabled={!item.mockDocumentName || item.status === "PENDING" || item.status === "APPROVED"}
+                        disabled={
+                          !item.mockDocumentName ||
+                          item.status === "PENDING" ||
+                          item.status === "APPROVED"
+                        }
                         onClick={() => void submitQualification(item.code)}
                       >
                         提交审核
@@ -1850,17 +1971,23 @@ export function App() {
             data={businessData}
             elders={elders}
             serviceCategories={config?.categories ?? []}
-            serviceRules={config?.rules ?? {
-              beforeNoteRequired: false,
-              duringNoteRequired: false,
-              afterNoteRequired: false,
-              resultSummaryRequired: false,
-              evidenceEnabled: true,
-              evidenceRequired: false,
-            }}
+            serviceRules={
+              config?.rules ?? {
+                beforeNoteRequired: false,
+                duringNoteRequired: false,
+                afterNoteRequired: false,
+                resultSummaryRequired: false,
+                evidenceEnabled: true,
+                evidenceRequired: false,
+              }
+            }
             tasks={operationTasks}
             reload={async () => {
-              await Promise.all([loadBusiness(), loadOperations(), loadConfig()]);
+              await Promise.all([
+                loadBusiness(),
+                loadOperations(),
+                loadConfig(),
+              ]);
             }}
             notify={setNotice}
             fail={setPageError}

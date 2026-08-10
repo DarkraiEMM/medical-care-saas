@@ -5,15 +5,16 @@ import { DatabaseSync } from "node:sqlite";
 
 type Input = Record<string, unknown>;
 
-const performanceMetricLabels: Record<string, { label: string; unit: string }> = {
-  TASK_RESPONSIBLE_APPROVED: { label: "负责人完成任务", unit: "单" },
-  TASK_COLLABORATOR_APPROVED: { label: "协作完成任务", unit: "单" },
-  SERVICE_DAY: { label: "实际服务天数", unit: "天" },
-  SALE_CONFIRMED: { label: "确认销售单", unit: "单" },
-  SALE_AMOUNT_100: { label: "确认销售金额", unit: "每100元" },
-  FOOD_TRACE_VERIFIED: { label: "食品流转记录复核通过", unit: "批" },
-  FOOD_TRACE_DAY: { label: "当日溯源记录完整", unit: "天" },
-};
+const performanceMetricLabels: Record<string, { label: string; unit: string }> =
+  {
+    TASK_RESPONSIBLE_APPROVED: { label: "负责人完成任务", unit: "单" },
+    TASK_COLLABORATOR_APPROVED: { label: "协作完成任务", unit: "单" },
+    SERVICE_DAY: { label: "实际服务天数", unit: "天" },
+    SALE_CONFIRMED: { label: "确认销售单", unit: "单" },
+    SALE_AMOUNT_100: { label: "确认销售金额", unit: "每100元" },
+    FOOD_TRACE_VERIFIED: { label: "食品流转记录复核通过", unit: "批" },
+    FOOD_TRACE_DAY: { label: "当日溯源记录完整", unit: "天" },
+  };
 
 const performanceRecommendedTemplates = [
   {
@@ -49,7 +50,8 @@ const performanceRecommendedTemplates = [
   {
     code: "FOOD_COMPLIANCE",
     name: "餐饮合规记录型",
-    description: "按照复核通过的食品流转记录和完整记录天数计分，不使用主观口味评价。",
+    description:
+      "按照复核通过的食品流转记录和完整记录天数计分，不使用主观口味评价。",
     recommendedDepartments: ["餐饮部"],
     values: {
       TASK_RESPONSIBLE_APPROVED: 0,
@@ -64,15 +66,45 @@ const performanceRecommendedTemplates = [
 ];
 
 const servicePerformanceRules = [
-  { metricCode: "TASK_RESPONSIBLE_APPROVED", label: "负责人完成并通过审核", unit: "单", pointsPerUnit: 10 },
-  { metricCode: "TASK_COLLABORATOR_APPROVED", label: "协作完成并通过审核", unit: "单", pointsPerUnit: 4 },
-  { metricCode: "SERVICE_DAY", label: "实际参与服务", unit: "天", pointsPerUnit: 2 },
-  { metricCode: "SALE_CONFIRMED", label: "经门店确认的产品服务", unit: "单", pointsPerUnit: 8 },
+  {
+    metricCode: "TASK_RESPONSIBLE_APPROVED",
+    label: "负责人完成并通过审核",
+    unit: "单",
+    pointsPerUnit: 10,
+  },
+  {
+    metricCode: "TASK_COLLABORATOR_APPROVED",
+    label: "协作完成并通过审核",
+    unit: "单",
+    pointsPerUnit: 4,
+  },
+  {
+    metricCode: "SERVICE_DAY",
+    label: "实际参与服务",
+    unit: "天",
+    pointsPerUnit: 2,
+  },
+  {
+    metricCode: "SALE_CONFIRMED",
+    label: "经门店确认的产品服务",
+    unit: "单",
+    pointsPerUnit: 8,
+  },
 ] as const;
 
 const foodPerformanceRules = [
-  { metricCode: "FOOD_TRACE_VERIFIED", label: "食品流转记录复核通过", unit: "批", pointsPerUnit: 2 },
-  { metricCode: "FOOD_TRACE_DAY", label: "当日溯源记录完整", unit: "天", pointsPerUnit: 3 },
+  {
+    metricCode: "FOOD_TRACE_VERIFIED",
+    label: "食品流转记录复核通过",
+    unit: "批",
+    pointsPerUnit: 2,
+  },
+  {
+    metricCode: "FOOD_TRACE_DAY",
+    label: "当日溯源记录完整",
+    unit: "天",
+    pointsPerUnit: 3,
+  },
 ] as const;
 
 export class BusinessRepository {
@@ -158,7 +190,8 @@ export class BusinessRepository {
 
   getStaffProfile(tenantId: string, actorId: string) {
     const staff = this.listStaff(tenantId).find((item) => item.id === actorId);
-    if (!staff || staff.status !== "ACTIVE") throw new Error("当前员工账号不可用");
+    if (!staff || staff.status !== "ACTIVE")
+      throw new Error("当前员工账号不可用");
     return {
       actorId: staff.id,
       tenantId,
@@ -169,44 +202,166 @@ export class BusinessRepository {
     };
   }
 
+  listDepartmentAppPolicies(tenantId: string) {
+    const policies = this.db
+      .prepare(
+        `SELECT * FROM demo_department_app_policies WHERE tenant_id=? ORDER BY department_name`,
+      )
+      .all(tenantId) as Array<Record<string, unknown>>;
+    const byDepartment = new Map(
+      policies.map((row) => [String(row.department_name), row]),
+    );
+    return this.listDepartments(tenantId).map((department) => {
+      const row = byDepartment.get(String(department.name));
+      return {
+        departmentName: department.name,
+        attendanceEnabled: Boolean(row?.attendance_enabled),
+        attendanceMode: String(row?.attendance_mode || "NONE"),
+        startTime: String(row?.start_time || ""),
+        endTime: String(row?.end_time || ""),
+        locationRadiusMeters: Number(row?.location_radius_meters || 0),
+        foodTraceEnabled: Boolean(row?.food_trace_enabled),
+        customerFeedbackEnabled: Boolean(row?.customer_feedback_enabled),
+        updatedAt: String(row?.updated_at || ""),
+      };
+    });
+  }
+
+  saveDepartmentAppPolicy(
+    tenantId: string,
+    departmentName: string,
+    input: Input,
+    actorId: string,
+  ) {
+    if (
+      !this.listDepartments(tenantId).some(
+        (department) => department.name === departmentName,
+      )
+    ) {
+      throw new Error("未找到该部门");
+    }
+    const attendanceEnabled = input.attendanceEnabled === true;
+    const attendanceMode =
+      attendanceEnabled &&
+      ["FIXED_SHIFT", "FLEXIBLE"].includes(String(input.attendanceMode))
+        ? String(input.attendanceMode)
+        : "NONE";
+    const startTime = attendanceEnabled
+      ? required(input.startTime, "上班时间")
+      : "";
+    const endTime = attendanceEnabled
+      ? required(input.endTime, "下班时间")
+      : "";
+    const locationRadiusMeters = attendanceEnabled
+      ? Math.max(50, Math.min(5000, Number(input.locationRadiusMeters) || 300))
+      : 0;
+    this.db
+      .prepare(
+        `INSERT INTO demo_department_app_policies
+      (id,tenant_id,department_name,attendance_enabled,attendance_mode,start_time,end_time,location_radius_meters,food_trace_enabled,customer_feedback_enabled,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)
+      ON CONFLICT(tenant_id,department_name) DO UPDATE SET
+        attendance_enabled=excluded.attendance_enabled,attendance_mode=excluded.attendance_mode,
+        start_time=excluded.start_time,end_time=excluded.end_time,location_radius_meters=excluded.location_radius_meters,
+        food_trace_enabled=excluded.food_trace_enabled,customer_feedback_enabled=excluded.customer_feedback_enabled,
+        updated_at=excluded.updated_at`,
+      )
+      .run(
+        this.id("app-policy"),
+        tenantId,
+        departmentName,
+        attendanceEnabled ? 1 : 0,
+        attendanceMode,
+        startTime,
+        endTime,
+        locationRadiusMeters,
+        input.foodTraceEnabled === true ? 1 : 0,
+        input.customerFeedbackEnabled === true ? 1 : 0,
+        now(),
+      );
+    this.audit(
+      actorId,
+      tenantId,
+      "DEPARTMENT_APP_POLICY_UPDATE",
+      "department",
+      departmentName,
+      null,
+    );
+    return this.listDepartmentAppPolicies(tenantId).find(
+      (policy) => policy.departmentName === departmentName,
+    );
+  }
+
   getStaffApplications(tenantId: string, actorId: string) {
     const staff = this.getStaffProfile(tenantId, actorId);
     const settings = this.getSettings(tenantId);
     const departments = staff.departments.map(String);
-    const isFoodOnly = departments.length > 0 && departments.every((name) => name.includes("餐饮"));
-    const attendsFixedShift = !isFoodOnly && departments.some((name) =>
-      name.includes("护理") || name.includes("服务") || name.includes("行政"),
+    const departmentPolicies = this.listDepartmentAppPolicies(tenantId).filter(
+      (policy) => departments.includes(String(policy.departmentName)),
     );
-    const foodTraceEnabled = Boolean(settings.foodTraceEnabled) && departments.some((name) => name.includes("餐饮"));
+    const attendancePolicy = departmentPolicies.find(
+      (policy) => policy.attendanceEnabled,
+    );
+    const foodPolicies = departmentPolicies.filter(
+      (policy) => policy.foodTraceEnabled,
+    );
+    const feedbackPolicies = departmentPolicies.filter(
+      (policy) => policy.customerFeedbackEnabled,
+    );
+    const isFoodOnly =
+      departmentPolicies.length > 0 &&
+      departmentPolicies.every(
+        (policy) => policy.foodTraceEnabled && !policy.attendanceEnabled,
+      );
+    const foodTraceEnabled =
+      Boolean(settings.foodTraceEnabled) && foodPolicies.length > 0;
     return {
       attendance: {
-        enabled: Boolean(settings.attendanceEnabled) && attendsFixedShift,
+        enabled:
+          Boolean(settings.attendanceEnabled) && Boolean(attendancePolicy),
         label: "上下班考勤",
-        policyName: isFoodOnly ? "餐饮岗位不启用固定班次" : "护理与上门组演示班次",
-        mode: isFoodOnly ? "NONE" : "FIXED_SHIFT",
-        description: isFoodOnly
-          ? "餐饮岗位当前按食品流转职责留痕，不要求独立上下班打卡。"
-          : "上下班考勤与每次服务的阶段记录分别统计。",
-        sourceDepartments: departments,
+        policyName: attendancePolicy
+          ? `${attendancePolicy.departmentName}考勤规则`
+          : "当前岗位未启用上下班考勤",
+        mode: attendancePolicy?.attendanceMode || "NONE",
+        startTime: attendancePolicy?.startTime || "",
+        endTime: attendancePolicy?.endTime || "",
+        locationRadiusMeters: Number(
+          attendancePolicy?.locationRadiusMeters || 0,
+        ),
+        description: attendancePolicy
+          ? `按${attendancePolicy.departmentName}规则记录，上下班考勤与服务阶段留痕分别统计。`
+          : "当前岗位不要求独立上下班打卡。",
+        sourceDepartments: attendancePolicy
+          ? [attendancePolicy.departmentName]
+          : [],
       },
       foodTrace: {
         enabled: foodTraceEnabled,
         label: "食品追溯",
-        description: "仅向承担餐饮职责的员工开放，用于拍摄票据、证件和批次标签。",
-        sourceDepartments: departments.filter((name) => name.includes("餐饮")),
+        description:
+          "仅向承担餐饮职责的员工开放，用于拍摄票据、证件和批次标签。",
+        sourceDepartments: foodPolicies.map((policy) => policy.departmentName),
       },
       performance: {
         enabled: true,
         label: "我的工作与业绩",
-        policyName: isFoodOnly ? "餐饮合规记录积分（演示）" : "照护服务贡献积分（演示）",
+        policyName: isFoodOnly
+          ? "餐饮合规记录积分（演示）"
+          : "照护服务贡献积分（演示）",
         description: isFoodOnly
           ? "按已复核的食品流转记录和完整记录天数计分，不评价菜品口味。"
           : "按实际任务中的负责人或协作角色计分，同一任务不会因跨部门任职重复计算。",
         sourceDepartments: departments,
       },
       customerFeedback: {
-        enabled: Boolean(settings.customerFeedbackEnabled) && !isFoodOnly,
+        enabled:
+          Boolean(settings.customerFeedbackEnabled) &&
+          feedbackPolicies.length > 0,
         label: "客户反馈",
+        sourceDepartments: feedbackPolicies.map(
+          (policy) => policy.departmentName,
+        ),
       },
     };
   }
@@ -215,12 +370,17 @@ export class BusinessRepository {
     const normalizedMonth = normalizeMonth(month);
     const profile = this.getStaffProfile(tenantId, actorId);
     const applications = this.getStaffApplications(tenantId, actorId);
-    const workload = this.listStaffPerformance(tenantId, normalizedMonth)
-      .find((item) => item.staffId === actorId);
+    const workload = this.listStaffPerformance(tenantId, normalizedMonth).find(
+      (item) => item.staffId === actorId,
+    );
     if (!workload) throw new Error("未找到当前员工档案");
-    const statement = this.listPerformanceStatements(tenantId, normalizedMonth)
-      .find((item) => item.staffId === actorId);
-    const isFoodOnly = profile.departments.length > 0 && profile.departments.every((name) => name.includes("餐饮"));
+    const statement = this.listPerformanceStatements(
+      tenantId,
+      normalizedMonth,
+    ).find((item) => item.staffId === actorId);
+    const isFoodOnly =
+      profile.departments.length > 0 &&
+      profile.departments.every((name) => name.includes("餐饮"));
     const serviceValues: Record<string, number> = {
       TASK_RESPONSIBLE_APPROVED: workload.responsibleApproved,
       TASK_COLLABORATOR_APPROVED: workload.collaborativeApproved,
@@ -229,26 +389,50 @@ export class BusinessRepository {
         (item) => item.staffId === actorId && item.status === "CONFIRMED",
       ).length,
     };
-    const foodRows = isFoodOnly
-      ? (this.db.prepare(
-          `SELECT status, service_date FROM demo_food_traces
-            WHERE tenant_id=? AND created_by=? AND substr(service_date,1,7)=?`,
-        ).all(tenantId, actorId, normalizedMonth) as Array<{ status: string; service_date: string }>)
-      : [];
-    const verifiedFoodRows = foodRows.filter((row) => row.status === "VERIFIED");
+    const foodRows = this.db
+      .prepare(
+        `SELECT status, service_date FROM demo_food_traces
+        WHERE tenant_id=? AND created_by=? AND substr(service_date,1,7)=?`,
+      )
+      .all(tenantId, actorId, normalizedMonth) as Array<{
+      status: string;
+      service_date: string;
+    }>;
+    const verifiedFoodRows = foodRows.filter(
+      (row) => row.status === "VERIFIED",
+    );
     const foodValues: Record<string, number> = {
       FOOD_TRACE_VERIFIED: verifiedFoodRows.length,
-      FOOD_TRACE_DAY: new Set(verifiedFoodRows.map((row) => row.service_date)).size,
+      FOOD_TRACE_DAY: new Set(verifiedFoodRows.map((row) => row.service_date))
+        .size,
     };
-    const publishedScheme = this.listPerformanceSchemes(tenantId).find((scheme) =>
-      scheme.status === "PUBLISHED" &&
-      scheme.effectiveFrom <= `${normalizedMonth}-31` &&
-      scheme.scopeDepartments.some((department) => profile.departments.includes(department)),
+    const applicableSchemes = this.listPerformanceSchemes(tenantId).filter(
+      (scheme) =>
+        scheme.status === "PUBLISHED" &&
+        scheme.effectiveFrom <= `${normalizedMonth}-31` &&
+        scheme.scopeDepartments.some((department) =>
+          profile.departments.includes(department),
+        ),
     );
-    const selectedRules = publishedScheme
-      ? publishedScheme.rules.filter((rule) => rule.enabled)
-      : isFoodOnly ? foodPerformanceRules : servicePerformanceRules;
-    const values = isFoodOnly ? foodValues : serviceValues;
+    const ruleByMetric = new Map<
+      string,
+      (typeof servicePerformanceRules)[number] | Record<string, unknown>
+    >();
+    for (const scheme of applicableSchemes) {
+      for (const rule of scheme.rules.filter((item) => item.enabled)) {
+        if (!ruleByMetric.has(String(rule.metricCode)))
+          ruleByMetric.set(String(rule.metricCode), rule);
+      }
+    }
+    if (!ruleByMetric.size) {
+      for (const rule of isFoodOnly
+        ? foodPerformanceRules
+        : servicePerformanceRules) {
+        ruleByMetric.set(String(rule.metricCode), rule);
+      }
+    }
+    const selectedRules = [...ruleByMetric.values()];
+    const values = { ...serviceValues, ...foodValues };
     const policyLines = selectedRules.map((rule) => {
       const metricCode = String(rule.metricCode);
       const quantity = values[metricCode] || 0;
@@ -262,8 +446,12 @@ export class BusinessRepository {
       };
     });
     const policy = {
-      name: publishedScheme?.name || applications.performance.policyName,
-      version: publishedScheme?.version || 1,
+      name: applicableSchemes.length
+        ? applicableSchemes.map((scheme) => scheme.name).join("＋")
+        : applications.performance.policyName,
+      version: applicableSchemes.length
+        ? Math.max(...applicableSchemes.map((scheme) => scheme.version))
+        : 1,
       status: "DEMO_PUBLISHED",
       calculationNote: applications.performance.description,
       sourceDepartments: profile.departments,
@@ -271,91 +459,184 @@ export class BusinessRepository {
       lines: policyLines,
       totalPoints: policyLines.reduce((sum, line) => sum + line.points, 0),
     };
-    return { month: normalizedMonth, workload, statement: statement || null, policy };
+    return {
+      month: normalizedMonth,
+      workload,
+      statement: statement || null,
+      policy,
+    };
   }
 
   getAttendanceToday(tenantId: string, actorId: string) {
     const application = this.getStaffApplications(tenantId, actorId).attendance;
     const settings = this.getSettings(tenantId);
-    if (!application.enabled) return { enabled: false, policy: application, record: null };
-    const date = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Shanghai" });
-    const row = this.db.prepare(
-      "SELECT * FROM demo_attendance_records WHERE tenant_id=? AND staff_id=? AND work_date=?",
-    ).get(tenantId, actorId, date) as Record<string, unknown> | undefined;
+    if (!application.enabled)
+      return { enabled: false, policy: application, record: null };
+    const date = new Date().toLocaleDateString("sv-SE", {
+      timeZone: "Asia/Shanghai",
+    });
+    const row = this.db
+      .prepare(
+        "SELECT * FROM demo_attendance_records WHERE tenant_id=? AND staff_id=? AND work_date=?",
+      )
+      .get(tenantId, actorId, date) as Record<string, unknown> | undefined;
     return {
       enabled: true,
       policy: {
         name: application.policyName,
         mode: application.mode,
-        startTime: "09:00",
-        endTime: "18:00",
-        locationRadiusMeters: settings.locationRadiusMeters,
+        startTime: application.startTime,
+        endTime: application.endTime,
+        locationRadiusMeters:
+          application.locationRadiusMeters || settings.locationRadiusMeters,
         description: application.description,
       },
-      record: row ? {
-        id: row.id, workDate: row.work_date, checkInAt: row.check_in_at,
-        checkOutAt: row.check_out_at, locationStatus: row.location_status,
-        exceptionStatus: row.exception_status, note: row.note, updatedAt: row.updated_at,
-      } : null,
+      record: row
+        ? {
+            id: row.id,
+            workDate: row.work_date,
+            checkInAt: row.check_in_at,
+            checkOutAt: row.check_out_at,
+            locationStatus: row.location_status,
+            exceptionStatus: row.exception_status,
+            note: row.note,
+            updatedAt: row.updated_at,
+          }
+        : null,
     };
   }
 
   checkAttendance(tenantId: string, actorId: string, input: Input) {
     const current = this.getAttendanceToday(tenantId, actorId);
     if (!current.enabled) throw new Error("本机构未启用上下班考勤");
-    const action = String(input.action) === "CHECK_OUT" ? "CHECK_OUT" : "CHECK_IN";
-    const date = new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Shanghai" });
+    const action =
+      String(input.action) === "CHECK_OUT" ? "CHECK_OUT" : "CHECK_IN";
+    const date = new Date().toLocaleDateString("sv-SE", {
+      timeZone: "Asia/Shanghai",
+    });
     const timestamp = now();
-    const locationStatus = String(input.locationStatus) === "DENIED" ? "DENIED" : "SIMULATED";
-    const existing = this.db.prepare(
-      "SELECT * FROM demo_attendance_records WHERE tenant_id=? AND staff_id=? AND work_date=?",
-    ).get(tenantId, actorId, date) as Record<string, unknown> | undefined;
-    if (action === "CHECK_OUT" && !existing?.check_in_at) throw new Error("请先完成上班打卡");
-    if (action === "CHECK_IN" && existing?.check_in_at) throw new Error("今天已经完成上班打卡");
-    if (action === "CHECK_OUT" && existing?.check_out_at) throw new Error("今天已经完成下班打卡");
+    const locationStatus =
+      String(input.locationStatus) === "DENIED" ? "DENIED" : "SIMULATED";
+    const existing = this.db
+      .prepare(
+        "SELECT * FROM demo_attendance_records WHERE tenant_id=? AND staff_id=? AND work_date=?",
+      )
+      .get(tenantId, actorId, date) as Record<string, unknown> | undefined;
+    if (action === "CHECK_OUT" && !existing?.check_in_at)
+      throw new Error("请先完成上班打卡");
+    if (action === "CHECK_IN" && existing?.check_in_at)
+      throw new Error("今天已经完成上班打卡");
+    if (action === "CHECK_OUT" && existing?.check_out_at)
+      throw new Error("今天已经完成下班打卡");
     if (!existing) {
-      this.db.prepare(`INSERT INTO demo_attendance_records
+      this.db
+        .prepare(
+          `INSERT INTO demo_attendance_records
         (id,tenant_id,staff_id,work_date,check_in_at,check_out_at,location_status,exception_status,note,updated_at)
-        VALUES (?,?,?,?,?,NULL,?,'NORMAL',?,?)`).run(
-        this.id("attendance"), tenantId, actorId, date, timestamp, locationStatus,
-        text(input.note, ""), timestamp,
-      );
+        VALUES (?,?,?,?,?,NULL,?,'NORMAL',?,?)`,
+        )
+        .run(
+          this.id("attendance"),
+          tenantId,
+          actorId,
+          date,
+          timestamp,
+          locationStatus,
+          text(input.note, ""),
+          timestamp,
+        );
     } else {
-      this.db.prepare(`UPDATE demo_attendance_records SET check_out_at=?,location_status=?,note=?,updated_at=?
-        WHERE tenant_id=? AND staff_id=? AND work_date=?`).run(
-        timestamp, locationStatus, text(input.note, ""), timestamp, tenantId, actorId, date,
-      );
+      this.db
+        .prepare(
+          `UPDATE demo_attendance_records SET check_out_at=?,location_status=?,note=?,updated_at=?
+        WHERE tenant_id=? AND staff_id=? AND work_date=?`,
+        )
+        .run(
+          timestamp,
+          locationStatus,
+          text(input.note, ""),
+          timestamp,
+          tenantId,
+          actorId,
+          date,
+        );
     }
-    this.audit(actorId, tenantId, action === "CHECK_IN" ? "ATTENDANCE_CHECK_IN" : "ATTENDANCE_CHECK_OUT", "attendance", date, locationStatus);
+    this.audit(
+      actorId,
+      tenantId,
+      action === "CHECK_IN" ? "ATTENDANCE_CHECK_IN" : "ATTENDANCE_CHECK_OUT",
+      "attendance",
+      date,
+      locationStatus,
+    );
     return this.getAttendanceToday(tenantId, actorId);
   }
 
   uploadBusinessMedia(tenantId: string, actorId: string, input: Input) {
-    const mediaType = ["IMAGE", "AUDIO", "SIGNATURE"].includes(String(input.mediaType))
-      ? String(input.mediaType) : "IMAGE";
+    const mediaType = ["IMAGE", "AUDIO", "SIGNATURE"].includes(
+      String(input.mediaType),
+    )
+      ? String(input.mediaType)
+      : "IMAGE";
     const dataUrl = required(input.dataUrl, "测试文件");
-    const sizeBytes = Number(input.sizeBytes) || Math.ceil(dataUrl.length * 0.75);
+    const sizeBytes =
+      Number(input.sizeBytes) || Math.ceil(dataUrl.length * 0.75);
     const maxBytes = mediaType === "AUDIO" ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
-    if (sizeBytes <= 0 || sizeBytes > maxBytes || !dataUrl.startsWith("data:")) throw new Error("文件无效或超过大小限制");
+    if (sizeBytes <= 0 || sizeBytes > maxBytes || !dataUrl.startsWith("data:"))
+      throw new Error("文件无效或超过大小限制");
     const id = this.id("media");
-    this.db.prepare(`INSERT INTO demo_business_media
+    this.db
+      .prepare(
+        `INSERT INTO demo_business_media
       (id,tenant_id,business_type,business_id,media_type,file_name,mime_type,size_bytes,duration_seconds,data_url,uploaded_by,is_test,created_at)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
-      id, tenantId, text(input.businessType, "UNBOUND"), text(input.businessId, "DRAFT"), mediaType,
-      text(input.fileName, `${mediaType.toLowerCase()}-${Date.now()}`), text(input.mimeType, "application/octet-stream"),
-      sizeBytes, Math.max(0, Math.min(180, Number(input.durationSeconds) || 0)), dataUrl, actorId, 1, now(),
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      )
+      .run(
+        id,
+        tenantId,
+        text(input.businessType, "UNBOUND"),
+        text(input.businessId, "DRAFT"),
+        mediaType,
+        text(input.fileName, `${mediaType.toLowerCase()}-${Date.now()}`),
+        text(input.mimeType, "application/octet-stream"),
+        sizeBytes,
+        Math.max(0, Math.min(180, Number(input.durationSeconds) || 0)),
+        dataUrl,
+        actorId,
+        1,
+        now(),
+      );
+    this.audit(
+      actorId,
+      tenantId,
+      "MEDIA_UPLOAD",
+      "business_media",
+      id,
+      mediaType,
     );
-    this.audit(actorId, tenantId, "MEDIA_UPLOAD", "business_media", id, mediaType);
     return this.getBusinessMedia(tenantId, id);
   }
 
   getBusinessMedia(tenantId: string, id: string) {
-    const row = this.db.prepare("SELECT * FROM demo_business_media WHERE tenant_id=? AND id=?")
+    const row = this.db
+      .prepare("SELECT * FROM demo_business_media WHERE tenant_id=? AND id=?")
       .get(tenantId, id) as Record<string, unknown> | undefined;
-    return row ? { id: row.id, businessType: row.business_type, businessId: row.business_id,
-      mediaType: row.media_type, fileName: row.file_name, mimeType: row.mime_type,
-      sizeBytes: Number(row.size_bytes), durationSeconds: Number(row.duration_seconds),
-      dataUrl: row.data_url, uploadedBy: row.uploaded_by, createdAt: row.created_at, isTest: true } : null;
+    return row
+      ? {
+          id: row.id,
+          businessType: row.business_type,
+          businessId: row.business_id,
+          mediaType: row.media_type,
+          fileName: row.file_name,
+          mimeType: row.mime_type,
+          sizeBytes: Number(row.size_bytes),
+          durationSeconds: Number(row.duration_seconds),
+          dataUrl: row.data_url,
+          uploadedBy: row.uploaded_by,
+          createdAt: row.created_at,
+          isTest: true,
+        }
+      : null;
   }
 
   listStaffPerformance(tenantId: string, month: string) {
@@ -395,7 +676,10 @@ export class BusinessRepository {
     return this.listStaff(tenantId).map((staff) => {
       const staffTasks = tasks.filter((task) => {
         const participants = parse<string[]>(task.participant_ids_json, []);
-        return task.responsible_id === staff.id || participants.includes(String(staff.id));
+        return (
+          task.responsible_id === staff.id ||
+          participants.includes(String(staff.id))
+        );
       });
       const responsibleTasks = staffTasks.filter(
         (task) => task.responsible_id === staff.id,
@@ -403,10 +687,18 @@ export class BusinessRepository {
       const collaborativeTasks = staffTasks.filter(
         (task) => task.responsible_id !== staff.id,
       );
-      const approvedTasks = staffTasks.filter((task) => task.status === "APPROVED");
+      const approvedTasks = staffTasks.filter(
+        (task) => task.status === "APPROVED",
+      );
       const dailyMap = new Map<
         string,
-        { date: string; assigned: number; approved: number; responsible: number; collaborative: number }
+        {
+          date: string;
+          assigned: number;
+          approved: number;
+          responsible: number;
+          collaborative: number;
+        }
       >();
       for (const task of staffTasks) {
         const date = String(task.scheduled_at).slice(0, 10);
@@ -444,8 +736,11 @@ export class BusinessRepository {
           returnedTaskIds.has(String(task.id)),
         ).length,
         serviceDays: dailyMap.size,
-        pendingTasks: staffTasks.filter((task) => task.status !== "APPROVED").length,
-        daily: [...dailyMap.values()].sort((a, b) => b.date.localeCompare(a.date)),
+        pendingTasks: staffTasks.filter((task) => task.status !== "APPROVED")
+          .length,
+        daily: [...dailyMap.values()].sort((a, b) =>
+          b.date.localeCompare(a.date),
+        ),
       };
     });
   }
@@ -497,16 +792,18 @@ export class BusinessRepository {
       effectiveFrom: String(scheme.effective_from),
       createdAt: String(scheme.created_at),
       scopeDepartments: parse<string[]>(scheme.scope_departments_json, []),
-      rules: (ruleStatement.all(tenantId, String(scheme.id)) as Array<Record<string, unknown>>).map(
-        (rule) => ({
-          id: rule.id,
-          metricCode: rule.metric_code,
-          label: rule.label,
-          pointsPerUnit: Number(rule.points_per_unit),
-          unit: rule.unit_label,
-          enabled: Boolean(rule.enabled),
-        }),
-      ),
+      rules: (
+        ruleStatement.all(tenantId, String(scheme.id)) as Array<
+          Record<string, unknown>
+        >
+      ).map((rule) => ({
+        id: rule.id,
+        metricCode: rule.metric_code,
+        label: rule.label,
+        pointsPerUnit: Number(rule.points_per_unit),
+        unit: rule.unit_label,
+        enabled: Boolean(rule.enabled),
+      })),
     }));
   }
 
@@ -522,9 +819,7 @@ export class BusinessRepository {
             metricCode,
             ...definition,
             pointsPerUnit:
-              template.values[
-                metricCode as keyof typeof template.values
-              ] || 0,
+              template.values[metricCode as keyof typeof template.values] || 0,
           }),
         ),
       })),
@@ -541,7 +836,11 @@ export class BusinessRepository {
     const version = Number(versionRow.value);
     const effectiveFrom = required(input.effectiveFrom, "生效日期");
     const scopeDepartments = Array.isArray(input.scopeDepartments)
-      ? [...new Set((input.scopeDepartments as unknown[]).map(String).filter(Boolean))]
+      ? [
+          ...new Set(
+            (input.scopeDepartments as unknown[]).map(String).filter(Boolean),
+          ),
+        ]
       : [];
     if (!scopeDepartments.length) throw new Error("至少选择一个适用部门");
     const submittedRules = Array.isArray(input.rules)
@@ -668,10 +967,18 @@ export class BusinessRepository {
         required(input.soldAt, "销售日期"),
         now(),
       );
-    this.audit(actorId, tenantId, "SALE_CREATE", "sales_record", id, String(staff.name));
-    return this.listSalesRecords(tenantId, String(input.soldAt).slice(0, 7)).find(
-      (item) => item.id === id,
+    this.audit(
+      actorId,
+      tenantId,
+      "SALE_CREATE",
+      "sales_record",
+      id,
+      String(staff.name),
     );
+    return this.listSalesRecords(
+      tenantId,
+      String(input.soldAt).slice(0, 7),
+    ).find((item) => item.id === id);
   }
 
   salesRecordAction(
@@ -680,7 +987,12 @@ export class BusinessRepository {
     action: string,
     actorId: string,
   ) {
-    const status = action === "CONFIRM" ? "CONFIRMED" : action === "CANCEL" ? "CANCELED" : "";
+    const status =
+      action === "CONFIRM"
+        ? "CONFIRMED"
+        : action === "CANCEL"
+          ? "CANCELED"
+          : "";
     if (!status) throw new Error("不支持的销售记录操作");
     const result = this.db
       .prepare(
@@ -717,7 +1029,10 @@ export class BusinessRepository {
       schemeName: row.scheme_name,
       status: row.status,
       lines: parse<Array<Record<string, unknown>>>(row.lines_json, []),
-      adjustments: parse<Array<Record<string, unknown>>>(row.adjustments_json, []),
+      adjustments: parse<Array<Record<string, unknown>>>(
+        row.adjustments_json,
+        [],
+      ),
       basePoints: Number(row.base_points),
       adjustmentPoints: Number(row.adjustment_points),
       totalPoints: Number(row.total_points),
@@ -726,13 +1041,19 @@ export class BusinessRepository {
     }));
   }
 
-  calculatePerformanceStatements(tenantId: string, month: string, actorId: string) {
+  calculatePerformanceStatements(
+    tenantId: string,
+    month: string,
+    actorId: string,
+  ) {
     const normalizedMonth = normalizeMonth(month);
     const monthEnd = `${normalizedMonth}-31`;
     const publishedSchemes = this.listPerformanceSchemes(tenantId).filter(
-      (scheme) => scheme.status === "PUBLISHED" && scheme.effectiveFrom <= monthEnd,
+      (scheme) =>
+        scheme.status === "PUBLISHED" && scheme.effectiveFrom <= monthEnd,
     );
-    if (!publishedSchemes.length) throw new Error("当前月份没有已生效的积分方案");
+    if (!publishedSchemes.length)
+      throw new Error("当前月份没有已生效的积分方案");
     const workload = this.listStaffPerformance(tenantId, normalizedMonth);
     const sales = this.listSalesRecords(tenantId, normalizedMonth).filter(
       (item) => item.status === "CONFIRMED",
@@ -754,12 +1075,26 @@ export class BusinessRepository {
     this.db.exec("BEGIN");
     try {
       for (const staff of workload) {
-        const schemeDetail = publishedSchemes.find((scheme) =>
-          scheme.scopeDepartments.some((department) => staff.departments.includes(department)),
+        const schemeDetails = publishedSchemes.filter((scheme) =>
+          scheme.scopeDepartments.some((department) =>
+            staff.departments.includes(department),
+          ),
         );
-        if (!schemeDetail) continue;
-        const rules = schemeDetail.rules.filter((rule) => rule.enabled);
-        const staffSales = sales.filter((sale) => sale.staffId === staff.staffId);
+        if (!schemeDetails.length) continue;
+        const ruleByMetric = new Map<
+          string,
+          (typeof schemeDetails)[number]["rules"][number]
+        >();
+        for (const scheme of schemeDetails) {
+          for (const rule of scheme.rules.filter((item) => item.enabled)) {
+            if (!ruleByMetric.has(String(rule.metricCode)))
+              ruleByMetric.set(String(rule.metricCode), rule);
+          }
+        }
+        const rules = [...ruleByMetric.values()];
+        const staffSales = sales.filter(
+          (sale) => sale.staffId === staff.staffId,
+        );
         const salesAmount = staffSales.reduce(
           (sum, sale) => sum + Number(sale.amountCents),
           0,
@@ -771,13 +1106,22 @@ export class BusinessRepository {
           SALE_CONFIRMED: staffSales.length,
           SALE_AMOUNT_100: Math.floor(salesAmount / 10000),
         };
-        const foodRows = this.db.prepare(
-          `SELECT status,service_date FROM demo_food_traces
+        const foodRows = this.db
+          .prepare(
+            `SELECT status,service_date FROM demo_food_traces
             WHERE tenant_id=? AND created_by=? AND substr(service_date,1,7)=?`,
-        ).all(tenantId, String(staff.staffId), normalizedMonth) as Array<{ status: string; service_date: string }>;
-        const verifiedFoodRows = foodRows.filter((row) => row.status === "VERIFIED");
+          )
+          .all(tenantId, String(staff.staffId), normalizedMonth) as Array<{
+          status: string;
+          service_date: string;
+        }>;
+        const verifiedFoodRows = foodRows.filter(
+          (row) => row.status === "VERIFIED",
+        );
         metricValues.FOOD_TRACE_VERIFIED = verifiedFoodRows.length;
-        metricValues.FOOD_TRACE_DAY = new Set(verifiedFoodRows.map((row) => row.service_date)).size;
+        metricValues.FOOD_TRACE_DAY = new Set(
+          verifiedFoodRows.map((row) => row.service_date),
+        ).size;
         const lines = rules.map((rule) => {
           const units = metricValues[String(rule.metricCode)] || 0;
           return {
@@ -795,10 +1139,10 @@ export class BusinessRepository {
           tenantId,
           String(staff.staffId),
           normalizedMonth,
-          schemeDetail.id,
-          schemeDetail.version,
-          schemeDetail.name,
-          JSON.stringify(schemeDetail),
+          schemeDetails.map((scheme) => scheme.id).join("+"),
+          Math.max(...schemeDetails.map((scheme) => scheme.version)),
+          schemeDetails.map((scheme) => scheme.name).join("＋"),
+          JSON.stringify(schemeDetails),
           JSON.stringify(lines),
           basePoints,
           basePoints,
@@ -842,7 +1186,13 @@ export class BusinessRepository {
       row.adjustments_json,
       [],
     );
-    adjustments.push({ id: this.id("adjustment"), points, reason, actorId, createdAt: now() });
+    adjustments.push({
+      id: this.id("adjustment"),
+      points,
+      reason,
+      actorId,
+      createdAt: now(),
+    });
     const adjustmentPoints = adjustments.reduce(
       (sum, item) => sum + Number(item.points),
       0,
@@ -853,11 +1203,25 @@ export class BusinessRepository {
             SET adjustments_json=?,adjustment_points=?,total_points=base_points+?
           WHERE tenant_id=? AND id=?`,
       )
-      .run(JSON.stringify(adjustments), adjustmentPoints, adjustmentPoints, tenantId, id);
-    this.audit(actorId, tenantId, "PERFORMANCE_ADJUST", "performance_statement", id, reason);
-    return this.listPerformanceStatements(tenantId, String(row.year_month)).find(
-      (item) => item.id === id,
+      .run(
+        JSON.stringify(adjustments),
+        adjustmentPoints,
+        adjustmentPoints,
+        tenantId,
+        id,
+      );
+    this.audit(
+      actorId,
+      tenantId,
+      "PERFORMANCE_ADJUST",
+      "performance_statement",
+      id,
+      reason,
     );
+    return this.listPerformanceStatements(
+      tenantId,
+      String(row.year_month),
+    ).find((item) => item.id === id);
   }
 
   confirmPerformanceStatement(tenantId: string, id: string, actorId: string) {
@@ -868,7 +1232,14 @@ export class BusinessRepository {
       )
       .run(now(), tenantId, id);
     if (!result.changes) throw new Error("绩效单不存在或已经确认");
-    this.audit(actorId, tenantId, "PERFORMANCE_CONFIRM", "performance_statement", id, null);
+    this.audit(
+      actorId,
+      tenantId,
+      "PERFORMANCE_CONFIRM",
+      "performance_statement",
+      id,
+      null,
+    );
     return { id, status: "CONFIRMED" };
   }
 
@@ -1106,8 +1477,18 @@ export class BusinessRepository {
     return this.listPromotion(tenantId).find((item) => item.id === id);
   }
 
-  listFood(tenantId: string) {
-    return this.rows("demo_food_traces", tenantId).map((row) => {
+  listFood(tenantId: string, actorId?: string) {
+    const rows = actorId
+      ? (this.db
+          .prepare(
+            "SELECT * FROM demo_food_traces WHERE tenant_id=? AND created_by=? ORDER BY updated_at DESC",
+          )
+          .all(tenantId, actorId) as Array<Record<string, unknown>>)
+      : this.rows("demo_food_traces", tenantId);
+    const historyStatement = this.db.prepare(
+      "SELECT action,actor_id,reason,created_at FROM demo_food_trace_history WHERE tenant_id=? AND food_trace_id=? ORDER BY created_at",
+    );
+    return rows.map((row) => {
       const evidenceIds = parse<string[]>(row.evidence_ids_json, []);
       return {
         id: row.id,
@@ -1121,14 +1502,28 @@ export class BusinessRepository {
         flowType: row.flow_type || "PURCHASE_IN",
         quantity: row.quantity || "",
         evidenceIds,
-        evidence: evidenceIds.map((id) => this.getBusinessMedia(tenantId, id)).filter(Boolean),
+        evidence: evidenceIds
+          .map((id) => this.getBusinessMedia(tenantId, id))
+          .filter(Boolean),
         voiceMediaId: row.voice_media_id || "",
-        voice: row.voice_media_id ? this.getBusinessMedia(tenantId, String(row.voice_media_id)) : null,
+        voice: row.voice_media_id
+          ? this.getBusinessMedia(tenantId, String(row.voice_media_id))
+          : null,
         createdBy: row.created_by || "",
         reviewedBy: row.reviewed_by || "",
         reviewedAt: row.reviewed_at || "",
         returnReason: row.return_reason || "",
         updatedAt: row.updated_at || row.created_at,
+        history: (
+          historyStatement.all(tenantId, String(row.id)) as Array<
+            Record<string, unknown>
+          >
+        ).map((entry) => ({
+          action: entry.action,
+          actorId: entry.actor_id,
+          reason: entry.reason,
+          createdAt: entry.created_at,
+        })),
       };
     });
   }
@@ -1156,12 +1551,37 @@ export class BusinessRepository {
         now(),
         text(input.flowType, "PURCHASE_IN"),
         text(input.quantity, ""),
-        JSON.stringify(Array.isArray(input.evidenceIds) ? input.evidenceIds.map(String).slice(0, 12) : []),
+        JSON.stringify(
+          Array.isArray(input.evidenceIds)
+            ? input.evidenceIds.map(String).slice(0, 12)
+            : [],
+        ),
         text(input.voiceMediaId, ""),
         actorId,
         "",
         "",
         "",
+        now(),
+      );
+    this.db
+      .prepare(
+        `INSERT INTO demo_food_trace_history
+      (id,tenant_id,food_trace_id,action,actor_id,reason,snapshot_json,created_at)
+      VALUES (?,?,?,?,?,?,?,?)`,
+      )
+      .run(
+        this.id("food-history"),
+        tenantId,
+        id,
+        "SUBMIT",
+        actorId,
+        "",
+        JSON.stringify({
+          ingredient,
+          evidenceIds: Array.isArray(input.evidenceIds)
+            ? input.evidenceIds
+            : [],
+        }),
         now(),
       );
     this.audit(
@@ -1175,16 +1595,115 @@ export class BusinessRepository {
     return this.listFood(tenantId).find((item) => item.id === id);
   }
 
-  foodAction(tenantId: string, id: string, action: string, reason: string, actorId: string) {
-    const status = action === "VERIFY" ? "VERIFIED" : action === "RETURN" ? "RETURNED" : "";
-    if (!status) throw new Error("不支持的食品追溯复核操作");
-    if (status === "RETURNED" && !reason.trim()) throw new Error("退回时必须填写原因");
-    const result = this.db.prepare(`UPDATE demo_food_traces SET status=?,reviewed_by=?,reviewed_at=?,return_reason=?,updated_at=?
-      WHERE tenant_id=? AND id=? AND status IN ('SUBMITTED','RETURNED')`).run(
-      status, actorId, now(), status === "RETURNED" ? reason.trim().slice(0, 500) : "", now(), tenantId, id,
+  resubmitFood(tenantId: string, id: string, input: Input, actorId: string) {
+    const ingredient = required(input.ingredient, "食材名称");
+    const evidenceIds = Array.isArray(input.evidenceIds)
+      ? input.evidenceIds.map(String).slice(0, 12)
+      : [];
+    if (!evidenceIds.length)
+      throw new Error("请至少上传一份票据、证件或批次标签");
+    const result = this.db
+      .prepare(
+        `UPDATE demo_food_traces SET
+      service_date=?,ingredient=?,supplier=?,batch_no=?,certificate=?,flow_type=?,quantity=?,
+      evidence_ids_json=?,voice_media_id=?,status='SUBMITTED',reviewed_by='',reviewed_at='',return_reason='',updated_at=?
+      WHERE tenant_id=? AND id=? AND created_by=? AND status='RETURNED'`,
+      )
+      .run(
+        text(input.serviceDate, new Date().toISOString().slice(0, 10)),
+        ingredient,
+        text(input.supplier, ""),
+        text(input.batchNo, ""),
+        text(input.certificate, "影像凭证已上传"),
+        text(input.flowType, "PURCHASE_IN"),
+        text(input.quantity, ""),
+        JSON.stringify(evidenceIds),
+        text(input.voiceMediaId, ""),
+        now(),
+        tenantId,
+        id,
+        actorId,
+      );
+    if (!result.changes)
+      throw new Error("记录不存在、不是本人提交，或当前状态不能重新提交");
+    this.db
+      .prepare(
+        `INSERT INTO demo_food_trace_history
+      (id,tenant_id,food_trace_id,action,actor_id,reason,snapshot_json,created_at)
+      VALUES (?,?,?,?,?,?,?,?)`,
+      )
+      .run(
+        this.id("food-history"),
+        tenantId,
+        id,
+        "RESUBMIT",
+        actorId,
+        "",
+        JSON.stringify({ ingredient, evidenceIds }),
+        now(),
+      );
+    this.audit(
+      actorId,
+      tenantId,
+      "FOOD_TRACE_RESUBMIT",
+      "food_trace",
+      id,
+      null,
     );
+    return this.listFood(tenantId, actorId).find((item) => item.id === id);
+  }
+
+  foodAction(
+    tenantId: string,
+    id: string,
+    action: string,
+    reason: string,
+    actorId: string,
+  ) {
+    const status =
+      action === "VERIFY" ? "VERIFIED" : action === "RETURN" ? "RETURNED" : "";
+    if (!status) throw new Error("不支持的食品追溯复核操作");
+    if (status === "RETURNED" && !reason.trim())
+      throw new Error("退回时必须填写原因");
+    const result = this.db
+      .prepare(
+        `UPDATE demo_food_traces SET status=?,reviewed_by=?,reviewed_at=?,return_reason=?,updated_at=?
+      WHERE tenant_id=? AND id=? AND status IN ('SUBMITTED','RETURNED')`,
+      )
+      .run(
+        status,
+        actorId,
+        now(),
+        status === "RETURNED" ? reason.trim().slice(0, 500) : "",
+        now(),
+        tenantId,
+        id,
+      );
     if (!result.changes) throw new Error("记录不存在或当前状态不能复核");
-    this.audit(actorId, tenantId, `FOOD_TRACE_${action}`, "food_trace", id, reason || null);
+    this.db
+      .prepare(
+        `INSERT INTO demo_food_trace_history
+      (id,tenant_id,food_trace_id,action,actor_id,reason,snapshot_json,created_at)
+      VALUES (?,?,?,?,?,?,?,?)`,
+      )
+      .run(
+        this.id("food-history"),
+        tenantId,
+        id,
+        status === "VERIFIED" ? "VERIFY" : "RETURN",
+        actorId,
+        status === "RETURNED" ? reason.trim() : "",
+        "{}",
+        now(),
+      );
+    this.audit(
+      actorId,
+      tenantId,
+      `FOOD_TRACE_${action}`,
+      "food_trace",
+      id,
+      reason || null,
+    );
     return this.listFood(tenantId).find((item) => item.id === id);
   }
 
@@ -1358,30 +1877,56 @@ export class BusinessRepository {
       CREATE TABLE IF NOT EXISTS demo_engagements (id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,elder_name TEXT NOT NULL,mode TEXT NOT NULL,start_date TEXT NOT NULL,end_date TEXT NOT NULL,status TEXT NOT NULL,responsible TEXT NOT NULL,frequency TEXT NOT NULL,created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS demo_archives (id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,category TEXT NOT NULL,title TEXT NOT NULL,retention_until TEXT NOT NULL,legal_hold INTEGER NOT NULL,export_status TEXT NOT NULL,updated_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS demo_org_settings (tenant_id TEXT PRIMARY KEY,organization_name TEXT NOT NULL,location_radius_meters INTEGER NOT NULL,time_tolerance_minutes INTEGER NOT NULL,evidence_retention_years INTEGER NOT NULL,contract_retention TEXT NOT NULL,attendance_enabled INTEGER NOT NULL DEFAULT 1,food_trace_enabled INTEGER NOT NULL DEFAULT 1,customer_feedback_enabled INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS demo_department_app_policies (id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,department_name TEXT NOT NULL,attendance_enabled INTEGER NOT NULL,attendance_mode TEXT NOT NULL,start_time TEXT NOT NULL,end_time TEXT NOT NULL,location_radius_meters INTEGER NOT NULL,food_trace_enabled INTEGER NOT NULL,customer_feedback_enabled INTEGER NOT NULL,updated_at TEXT NOT NULL,UNIQUE(tenant_id,department_name));
       CREATE TABLE IF NOT EXISTS demo_attendance_records (id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,staff_id TEXT NOT NULL,work_date TEXT NOT NULL,check_in_at TEXT,check_out_at TEXT,location_status TEXT NOT NULL,exception_status TEXT NOT NULL,note TEXT NOT NULL,updated_at TEXT NOT NULL,UNIQUE(tenant_id,staff_id,work_date));
+      CREATE TABLE IF NOT EXISTS demo_food_trace_history (id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,food_trace_id TEXT NOT NULL,action TEXT NOT NULL,actor_id TEXT NOT NULL,reason TEXT NOT NULL,snapshot_json TEXT NOT NULL,created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS demo_business_media (id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,business_type TEXT NOT NULL,business_id TEXT NOT NULL,media_type TEXT NOT NULL,file_name TEXT NOT NULL,mime_type TEXT NOT NULL,size_bytes INTEGER NOT NULL,duration_seconds INTEGER NOT NULL,data_url TEXT NOT NULL,uploaded_by TEXT NOT NULL,is_test INTEGER NOT NULL,created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS demo_performance_schemes (id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,name TEXT NOT NULL,version_no INTEGER NOT NULL,status TEXT NOT NULL,effective_from TEXT NOT NULL,created_at TEXT NOT NULL,scope_departments_json TEXT NOT NULL DEFAULT '[]',UNIQUE(tenant_id,version_no));
       CREATE TABLE IF NOT EXISTS demo_performance_rules (id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,scheme_id TEXT NOT NULL,metric_code TEXT NOT NULL,label TEXT NOT NULL,points_per_unit REAL NOT NULL,unit_label TEXT NOT NULL,enabled INTEGER NOT NULL,sort_order INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS demo_sales_records (id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,staff_id TEXT NOT NULL,item_name TEXT NOT NULL,quantity INTEGER NOT NULL,amount_cents INTEGER NOT NULL,sold_at TEXT NOT NULL,status TEXT NOT NULL,confirmed_at TEXT,created_at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS demo_performance_statements (id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,staff_id TEXT NOT NULL,year_month TEXT NOT NULL,scheme_id TEXT NOT NULL,scheme_version INTEGER NOT NULL,scheme_name TEXT NOT NULL,status TEXT NOT NULL,scheme_snapshot_json TEXT NOT NULL,lines_json TEXT NOT NULL,adjustments_json TEXT NOT NULL,base_points REAL NOT NULL,adjustment_points REAL NOT NULL,total_points REAL NOT NULL,calculated_at TEXT NOT NULL,confirmed_at TEXT,UNIQUE(tenant_id,staff_id,year_month));
     `);
-    const settingColumns = this.db.prepare("PRAGMA table_info(demo_org_settings)").all() as Array<{ name: string }>;
+    const settingColumns = this.db
+      .prepare("PRAGMA table_info(demo_org_settings)")
+      .all() as Array<{ name: string }>;
     for (const [name, definition] of [
       ["attendance_enabled", "INTEGER NOT NULL DEFAULT 1"],
       ["food_trace_enabled", "INTEGER NOT NULL DEFAULT 1"],
       ["customer_feedback_enabled", "INTEGER NOT NULL DEFAULT 1"],
-    ] as Array<[string, string]>) if (!settingColumns.some((column) => column.name === name)) this.db.exec(`ALTER TABLE demo_org_settings ADD COLUMN ${name} ${definition}`);
-    const foodColumns = this.db.prepare("PRAGMA table_info(demo_food_traces)").all() as Array<{ name: string }>;
+    ] as Array<[string, string]>)
+      if (!settingColumns.some((column) => column.name === name))
+        this.db.exec(
+          `ALTER TABLE demo_org_settings ADD COLUMN ${name} ${definition}`,
+        );
+    const foodColumns = this.db
+      .prepare("PRAGMA table_info(demo_food_traces)")
+      .all() as Array<{ name: string }>;
     for (const [name, definition] of [
-      ["flow_type", "TEXT NOT NULL DEFAULT 'PURCHASE_IN'"], ["quantity", "TEXT NOT NULL DEFAULT ''"],
-      ["evidence_ids_json", "TEXT NOT NULL DEFAULT '[]'"], ["voice_media_id", "TEXT NOT NULL DEFAULT ''"],
-      ["created_by", "TEXT NOT NULL DEFAULT ''"], ["reviewed_by", "TEXT NOT NULL DEFAULT ''"],
-      ["reviewed_at", "TEXT NOT NULL DEFAULT ''"], ["return_reason", "TEXT NOT NULL DEFAULT ''"],
+      ["flow_type", "TEXT NOT NULL DEFAULT 'PURCHASE_IN'"],
+      ["quantity", "TEXT NOT NULL DEFAULT ''"],
+      ["evidence_ids_json", "TEXT NOT NULL DEFAULT '[]'"],
+      ["voice_media_id", "TEXT NOT NULL DEFAULT ''"],
+      ["created_by", "TEXT NOT NULL DEFAULT ''"],
+      ["reviewed_by", "TEXT NOT NULL DEFAULT ''"],
+      ["reviewed_at", "TEXT NOT NULL DEFAULT ''"],
+      ["return_reason", "TEXT NOT NULL DEFAULT ''"],
       ["updated_at", "TEXT NOT NULL DEFAULT ''"],
-    ] as Array<[string, string]>) if (!foodColumns.some((column) => column.name === name)) this.db.exec(`ALTER TABLE demo_food_traces ADD COLUMN ${name} ${definition}`);
-    const performanceSchemeColumns = this.db.prepare("PRAGMA table_info(demo_performance_schemes)").all() as Array<{ name: string }>;
-    if (!performanceSchemeColumns.some((column) => column.name === "scope_departments_json")) {
-      this.db.exec("ALTER TABLE demo_performance_schemes ADD COLUMN scope_departments_json TEXT NOT NULL DEFAULT '[]'");
+    ] as Array<[string, string]>)
+      if (!foodColumns.some((column) => column.name === name))
+        this.db.exec(
+          `ALTER TABLE demo_food_traces ADD COLUMN ${name} ${definition}`,
+        );
+    const performanceSchemeColumns = this.db
+      .prepare("PRAGMA table_info(demo_performance_schemes)")
+      .all() as Array<{ name: string }>;
+    if (
+      !performanceSchemeColumns.some(
+        (column) => column.name === "scope_departments_json",
+      )
+    ) {
+      this.db.exec(
+        "ALTER TABLE demo_performance_schemes ADD COLUMN scope_departments_json TEXT NOT NULL DEFAULT '[]'",
+      );
     }
   }
 
@@ -1412,9 +1957,11 @@ export class BusinessRepository {
       "2025-03-01",
       stamp,
     );
-    this.db.prepare(
-      "UPDATE demo_staff_directory SET departments_json=? WHERE tenant_id=? AND id=?",
-    ).run(JSON.stringify(["护理部", "上门服务组"]), tenant, "staff-lz-001");
+    this.db
+      .prepare(
+        "UPDATE demo_staff_directory SET departments_json=? WHERE tenant_id=? AND id=?",
+      )
+      .run(JSON.stringify(["护理部", "上门服务组"]), tenant, "staff-lz-001");
     staff.run(
       "staff-lz-002",
       tenant,
@@ -1518,9 +2065,11 @@ export class BusinessRepository {
         "",
         stamp,
       );
-    this.db.prepare(
-      "UPDATE demo_food_traces SET created_by=?, responsible=?, status='VERIFIED' WHERE tenant_id=? AND id=?",
-    ).run("staff-lz-003", "陈师傅", tenant, "food-001");
+    this.db
+      .prepare(
+        "UPDATE demo_food_traces SET created_by=?, responsible=?, status='VERIFIED' WHERE tenant_id=? AND id=?",
+      )
+      .run("staff-lz-003", "陈师傅", tenant, "food-001");
     this.db
       .prepare(
         "INSERT OR IGNORE INTO demo_engagements VALUES (?,?,?,?,?,?,?,?,?,?)",
@@ -1561,10 +2110,69 @@ export class BusinessRepository {
         "NOT_REQUESTED",
         stamp,
       );
-    this.db.prepare(`INSERT OR IGNORE INTO demo_org_settings
+    this.db
+      .prepare(
+        `INSERT OR IGNORE INTO demo_org_settings
       (tenant_id,organization_name,location_radius_meters,time_tolerance_minutes,evidence_retention_years,contract_retention,
-       attendance_enabled,food_trace_enabled,customer_feedback_enabled,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`)
+       attendance_enabled,food_trace_enabled,customer_feedback_enabled,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      )
       .run(tenant, "兰州试点机构", 300, 30, 3, "永久", 1, 1, 1, stamp);
+    const appPolicy = this.db
+      .prepare(`INSERT OR IGNORE INTO demo_department_app_policies
+      (id,tenant_id,department_name,attendance_enabled,attendance_mode,start_time,end_time,location_radius_meters,food_trace_enabled,customer_feedback_enabled,updated_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
+    appPolicy.run(
+      "app-policy-care",
+      tenant,
+      "护理部",
+      1,
+      "FIXED_SHIFT",
+      "09:00",
+      "18:00",
+      300,
+      0,
+      1,
+      stamp,
+    );
+    appPolicy.run(
+      "app-policy-service",
+      tenant,
+      "服务部",
+      1,
+      "FLEXIBLE",
+      "08:30",
+      "18:30",
+      500,
+      0,
+      1,
+      stamp,
+    );
+    appPolicy.run(
+      "app-policy-home",
+      tenant,
+      "上门服务组",
+      1,
+      "FLEXIBLE",
+      "08:30",
+      "18:30",
+      500,
+      0,
+      1,
+      stamp,
+    );
+    appPolicy.run(
+      "app-policy-food",
+      tenant,
+      "餐饮部",
+      0,
+      "NONE",
+      "",
+      "",
+      0,
+      1,
+      0,
+      stamp,
+    );
     this.db
       .prepare(
         `INSERT OR IGNORE INTO demo_performance_schemes
@@ -1581,28 +2189,42 @@ export class BusinessRepository {
         stamp,
         JSON.stringify(["护理部", "服务部", "上门服务组"]),
       );
-    this.db.prepare(
-      "UPDATE demo_performance_schemes SET scope_departments_json=? WHERE tenant_id=? AND id=?",
-    ).run(JSON.stringify(["护理部", "服务部", "上门服务组"]), tenant, "points-scheme-lz-v1");
-    this.db.prepare(
-      `INSERT OR IGNORE INTO demo_performance_schemes
+    this.db
+      .prepare(
+        "UPDATE demo_performance_schemes SET scope_departments_json=? WHERE tenant_id=? AND id=?",
+      )
+      .run(
+        JSON.stringify(["护理部", "服务部", "上门服务组"]),
+        tenant,
+        "points-scheme-lz-v1",
+      );
+    this.db
+      .prepare(
+        `INSERT OR IGNORE INTO demo_performance_schemes
        (id,tenant_id,name,version_no,status,effective_from,created_at,scope_departments_json)
        VALUES (?,?,?,?,?,?,?,?)`,
-    ).run(
-      "points-scheme-food-v1",
-      tenant,
-      "餐饮合规记录积分（演示）",
-      2,
-      "PUBLISHED",
-      "2026-08-01",
-      stamp,
-      JSON.stringify(["餐饮部"]),
-    );
+      )
+      .run(
+        "points-scheme-food-v1",
+        tenant,
+        "餐饮合规记录积分（演示）",
+        2,
+        "PUBLISHED",
+        "2026-08-01",
+        stamp,
+        JSON.stringify(["餐饮部"]),
+      );
     const pointsRule = this.db.prepare(
       "INSERT OR IGNORE INTO demo_performance_rules VALUES (?,?,?,?,?,?,?,?,?)",
     );
     const seededPointRules: Array<[string, string, string, number, string]> = [
-      ["points-rule-1", "TASK_RESPONSIBLE_APPROVED", "负责人完成任务", 10, "单"],
+      [
+        "points-rule-1",
+        "TASK_RESPONSIBLE_APPROVED",
+        "负责人完成任务",
+        10,
+        "单",
+      ],
       ["points-rule-2", "TASK_COLLABORATOR_APPROVED", "协作完成任务", 4, "单"],
       ["points-rule-3", "SERVICE_DAY", "实际服务天数", 2, "天"],
       ["points-rule-4", "SALE_CONFIRMED", "确认销售单", 8, "单"],
@@ -1610,23 +2232,78 @@ export class BusinessRepository {
     ];
     seededPointRules.forEach((rule, index) =>
       pointsRule.run(
-        rule[0], tenant, "points-scheme-lz-v1", rule[1], rule[2], rule[3], rule[4], 1, index,
+        rule[0],
+        tenant,
+        "points-scheme-lz-v1",
+        rule[1],
+        rule[2],
+        rule[3],
+        rule[4],
+        1,
+        index,
       ),
     );
     pointsRule.run(
-      "points-rule-food-1", tenant, "points-scheme-food-v1", "FOOD_TRACE_VERIFIED",
-      "食品流转记录复核通过", 2, "批", 1, 0,
+      "points-rule-food-1",
+      tenant,
+      "points-scheme-food-v1",
+      "FOOD_TRACE_VERIFIED",
+      "食品流转记录复核通过",
+      2,
+      "批",
+      1,
+      0,
     );
     pointsRule.run(
-      "points-rule-food-2", tenant, "points-scheme-food-v1", "FOOD_TRACE_DAY",
-      "当日溯源记录完整", 3, "天", 1, 1,
+      "points-rule-food-2",
+      tenant,
+      "points-scheme-food-v1",
+      "FOOD_TRACE_DAY",
+      "当日溯源记录完整",
+      3,
+      "天",
+      1,
+      1,
     );
     const sale = this.db.prepare(
       "INSERT OR IGNORE INTO demo_sales_records VALUES (?,?,?,?,?,?,?,?,?,?)",
     );
-    sale.run("sale-lz-001", tenant, "staff-lz-001", "居家防滑扶手", 1, 29900, "2026-08-07", "CONFIRMED", stamp, stamp);
-    sale.run("sale-lz-002", tenant, "staff-lz-002", "睡眠监测垫", 1, 68000, "2026-08-08", "PENDING", null, stamp);
-    sale.run("sale-lz-003", tenant, "staff-lz-003", "营养补充组合", 2, 39800, "2026-08-09", "CONFIRMED", stamp, stamp);
+    sale.run(
+      "sale-lz-001",
+      tenant,
+      "staff-lz-001",
+      "居家防滑扶手",
+      1,
+      29900,
+      "2026-08-07",
+      "CONFIRMED",
+      stamp,
+      stamp,
+    );
+    sale.run(
+      "sale-lz-002",
+      tenant,
+      "staff-lz-002",
+      "睡眠监测垫",
+      1,
+      68000,
+      "2026-08-08",
+      "PENDING",
+      null,
+      stamp,
+    );
+    sale.run(
+      "sale-lz-003",
+      tenant,
+      "staff-lz-003",
+      "营养补充组合",
+      2,
+      39800,
+      "2026-08-09",
+      "CONFIRMED",
+      stamp,
+      stamp,
+    );
   }
 }
 

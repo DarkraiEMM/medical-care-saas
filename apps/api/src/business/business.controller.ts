@@ -436,6 +436,29 @@ export class BusinessController {
     const ctx = current(request);
     return { data: this.repo.getSettings(ctx.tenantId) };
   }
+  @Get("department-app-policies") departmentAppPolicies(
+    @Req() request: RequestWithIdentity,
+  ) {
+    const ctx = current(request);
+    return { data: this.repo.listDepartmentAppPolicies(ctx.tenantId) };
+  }
+  @Post("department-app-policies/:departmentName") saveDepartmentAppPolicy(
+    @Req() request: RequestWithIdentity,
+    @Param("departmentName") departmentName: string,
+    @Body() body: unknown,
+  ) {
+    const ctx = current(request);
+    return {
+      data: run(() =>
+        this.repo.saveDepartmentAppPolicy(
+          ctx.tenantId,
+          departmentName,
+          (body || {}) as Record<string, unknown>,
+          ctx.actorId,
+        ),
+      ),
+    };
+  }
   @Post("settings") saveSettings(
     @Req() request: RequestWithIdentity,
     @Body() body: unknown,
@@ -462,12 +485,18 @@ export class StaffBusinessController {
 
   @Get("directory-profile") profile(@Req() request: RequestWithIdentity) {
     const ctx = current(request);
-    return { data: run(() => this.repo.getStaffProfile(ctx.tenantId, ctx.actorId)) };
+    return {
+      data: run(() => this.repo.getStaffProfile(ctx.tenantId, ctx.actorId)),
+    };
   }
 
   @Get("applications") applications(@Req() request: RequestWithIdentity) {
     const ctx = current(request);
-    return { data: run(() => this.repo.getStaffApplications(ctx.tenantId, ctx.actorId)) };
+    return {
+      data: run(() =>
+        this.repo.getStaffApplications(ctx.tenantId, ctx.actorId),
+      ),
+    };
   }
 
   @Get("me/work-summary") workSummary(
@@ -488,7 +517,9 @@ export class StaffBusinessController {
 
   @Get("attendance/today") attendance(@Req() request: RequestWithIdentity) {
     const ctx = current(request);
-    return { data: run(() => this.repo.getAttendanceToday(ctx.tenantId, ctx.actorId)) };
+    return {
+      data: run(() => this.repo.getAttendanceToday(ctx.tenantId, ctx.actorId)),
+    };
   }
 
   @Post("attendance/check") checkAttendance(
@@ -537,9 +568,13 @@ export class StaffBusinessController {
     const ctx = current(request);
     return {
       data: run(() => {
-        const applications = this.repo.getStaffApplications(ctx.tenantId, ctx.actorId);
-        if (!applications.foodTrace.enabled) throw new Error("当前账号未开通食品追溯");
-        return this.repo.listFood(ctx.tenantId);
+        const applications = this.repo.getStaffApplications(
+          ctx.tenantId,
+          ctx.actorId,
+        );
+        if (!applications.foodTrace.enabled)
+          throw new Error("当前账号未开通食品追溯");
+        return this.repo.listFood(ctx.tenantId, ctx.actorId);
       }),
     };
   }
@@ -551,13 +586,24 @@ export class StaffBusinessController {
     const ctx = current(request);
     return {
       data: run(() => {
-        const applications = this.repo.getStaffApplications(ctx.tenantId, ctx.actorId);
-        if (!applications.foodTrace.enabled) throw new Error("当前账号未开通食品追溯");
-        return this.repo.createFood(
+        const applications = this.repo.getStaffApplications(
           ctx.tenantId,
-          (body || {}) as Record<string, unknown>,
           ctx.actorId,
         );
+        if (!applications.foodTrace.enabled)
+          throw new Error("当前账号未开通食品追溯");
+        const value = (body || {}) as Record<string, unknown>;
+        if (!Array.isArray(value.evidenceIds) || !value.evidenceIds.length) {
+          throw new Error("请至少上传一份票据、证件或批次标签");
+        }
+        return value.recordId
+          ? this.repo.resubmitFood(
+              ctx.tenantId,
+              String(value.recordId),
+              value,
+              ctx.actorId,
+            )
+          : this.repo.createFood(ctx.tenantId, value, ctx.actorId);
       }),
     };
   }

@@ -53,6 +53,7 @@ export type BusinessData = {
   food: Array<Record<string, unknown>>;
   engagements: Array<Record<string, unknown>>;
   archives: Array<Record<string, unknown>>;
+  departmentPolicies: Array<Record<string, unknown>>;
   settings: Record<string, unknown>;
 };
 
@@ -65,7 +66,12 @@ type Props = {
     label: string;
     enabled?: boolean;
     order?: number;
-    items: Array<{ id: string; label: string; enabled?: boolean; order?: number }>;
+    items: Array<{
+      id: string;
+      label: string;
+      enabled?: boolean;
+      order?: number;
+    }>;
   }>;
   serviceRules: Record<string, boolean>;
   tasks: Array<{
@@ -199,7 +205,9 @@ export function BusinessModulePage({
   const [pointsRuleDraft, setPointsRuleDraft] = useState<
     Array<Record<string, unknown>>
   >([]);
-  const [pointsSchemeDepartments, setPointsSchemeDepartments] = useState<string[]>([]);
+  const [pointsSchemeDepartments, setPointsSchemeDepartments] = useState<
+    string[]
+  >([]);
   useEffect(() => setCatalogDraft(serviceCategories), [serviceCategories]);
   useEffect(() => setPerformanceRows(data.performance), [data.performance]);
   useEffect(() => setPerformanceSales(data.sales), [data.sales]);
@@ -209,8 +217,7 @@ export function BusinessModulePage({
   );
   const recommendedPerformanceTemplates =
     (data.performanceTemplates.templates as
-      | Array<Record<string, unknown>>
-      | undefined) || [];
+      Array<Record<string, unknown>> | undefined) || [];
   useEffect(() => {
     if (!recommendedPerformanceTemplates.length || selectedPointsTemplate)
       return;
@@ -384,22 +391,46 @@ export function BusinessModulePage({
           </button>
         </div>
         <section className="performance-summary">
-          <article><span>在册员工</span><strong>{rows.length}</strong></article>
-          <article><span>审核通过人次</span><strong>{totalApproved}</strong></article>
-          <article><span>负责人完成</span><strong>{totalResponsible}</strong></article>
-          <article><span>协作完成</span><strong>{totalCollaborative}</strong></article>
+          <article>
+            <span>在册员工</span>
+            <strong>{rows.length}</strong>
+          </article>
+          <article>
+            <span>审核通过人次</span>
+            <strong>{totalApproved}</strong>
+          </article>
+          <article>
+            <span>负责人完成</span>
+            <strong>{totalResponsible}</strong>
+          </article>
+          <article>
+            <span>协作完成</span>
+            <strong>{totalCollaborative}</strong>
+          </article>
         </section>
         <div className="performance-boundary">
           “涉及退回”仅表示该员工参与的任务曾被退回，不能据此自动归责或扣款。需要计算积分时，请进入“绩效管理”选择方案并生成月度绩效单。
         </div>
         <section className="performance-table">
           <div className="performance-head">
-            <span>员工</span><span>参与任务</span><span>通过</span><span>负责人完成</span><span>协作完成</span><span>涉及退回</span><span>服务天数</span>
+            <span>员工</span>
+            <span>参与任务</span>
+            <span>通过</span>
+            <span>负责人完成</span>
+            <span>协作完成</span>
+            <span>涉及退回</span>
+            <span>服务天数</span>
           </div>
           {rows.map((row) => (
             <details className="performance-row" key={String(row.staffId)}>
               <summary>
-                <span><strong>{String(row.name)}</strong><small>{String(row.role)} · {(row.departments as string[]).join("、")}</small></span>
+                <span>
+                  <strong>{String(row.name)}</strong>
+                  <small>
+                    {String(row.role)} ·{" "}
+                    {(row.departments as string[]).join("、")}
+                  </small>
+                </span>
                 <span>{String(row.assignedTasks)}</span>
                 <span>{String(row.approvedTasks)}</span>
                 <span>{String(row.responsibleApproved)}</span>
@@ -408,7 +439,10 @@ export function BusinessModulePage({
                 <span>{String(row.serviceDays)}</span>
               </summary>
               <div className="daily-performance">
-                <header><ChartNoAxesColumnIncreasing size={17} /><strong>{String(row.month)} 每日任务</strong></header>
+                <header>
+                  <ChartNoAxesColumnIncreasing size={17} />
+                  <strong>{String(row.month)} 每日任务</strong>
+                </header>
                 {(row.daily as Array<Record<string, unknown>>).length ? (
                   (row.daily as Array<Record<string, unknown>>).map((day) => (
                     <div key={String(day.date)}>
@@ -419,7 +453,9 @@ export function BusinessModulePage({
                       <span>通过 {String(day.approved)} 单</span>
                     </div>
                   ))
-                ) : <p>本月没有任务记录。</p>}
+                ) : (
+                  <p>本月没有任务记录。</p>
+                )}
               </div>
             </details>
           ))}
@@ -431,8 +467,7 @@ export function BusinessModulePage({
   if (view === "performance-management") {
     const currentScheme =
       data.performanceSchemes.find(
-        (scheme) =>
-          String(scheme.effectiveFrom) <= `${performanceMonth}-31`,
+        (scheme) => String(scheme.effectiveFrom) <= `${performanceMonth}-31`,
       ) || data.performanceSchemes[0];
     const statementTotal = performanceStatements.reduce(
       (sum, row) => sum + Number(row.totalPoints || 0),
@@ -513,18 +548,25 @@ export function BusinessModulePage({
                     setSelectedPointsTemplate(code);
                     setPointsRuleDraft(
                       template
-                        ? (template.rules as Array<Record<string, unknown>>).map(
-                            (rule) => ({ ...rule, enabled: Number(rule.pointsPerUnit) > 0 }),
-                          )
+                        ? (
+                            template.rules as Array<Record<string, unknown>>
+                          ).map((rule) => ({
+                            ...rule,
+                            enabled: Number(rule.pointsPerUnit) > 0,
+                          }))
                         : [],
                     );
                     setPointsSchemeDepartments(
-                      (template?.recommendedDepartments as string[] | undefined) || [],
+                      (template?.recommendedDepartments as
+                        string[] | undefined) || [],
                     );
                   }}
                 >
                   {recommendedPerformanceTemplates.map((template) => (
-                    <option value={String(template.code)} key={String(template.code)}>
+                    <option
+                      value={String(template.code)}
+                      key={String(template.code)}
+                    >
                       {String(template.name)}
                     </option>
                   ))}
@@ -573,7 +615,9 @@ export function BusinessModulePage({
               </div>
               <fieldset className="scheme-department-scope">
                 <legend>适用部门</legend>
-                <p>员工属于多个部门时，按其实际匹配的方案计算；同一任务不会重复计分。</p>
+                <p>
+                  员工属于多个部门时，按其实际匹配的方案计算；同一任务不会重复计分。
+                </p>
                 <div>
                   {data.departments.map((department) => {
                     const name = String(department.name);
@@ -598,13 +642,21 @@ export function BusinessModulePage({
               </fieldset>
               <div className="points-rule-grid">
                 <div className="points-rule-head">
-                  <span>启用</span><span>指标来源</span><span>单位积分</span><span>公式预览</span>
+                  <span>启用</span>
+                  <span>指标来源</span>
+                  <span>单位积分</span>
+                  <span>公式预览</span>
                 </div>
                 {pointsRuleDraft.map((rule, index) => (
-                  <div className="points-rule-row" key={String(rule.metricCode)}>
+                  <div
+                    className="points-rule-row"
+                    key={String(rule.metricCode)}
+                  >
                     <input
                       type="checkbox"
-                      checked={rule.enabled !== false && Number(rule.pointsPerUnit) > 0}
+                      checked={
+                        rule.enabled !== false && Number(rule.pointsPerUnit) > 0
+                      }
                       onChange={(event) =>
                         setPointsRuleDraft((current) =>
                           current.map((item, itemIndex) =>
@@ -630,7 +682,10 @@ export function BusinessModulePage({
                         setPointsRuleDraft((current) =>
                           current.map((item, itemIndex) =>
                             itemIndex === index
-                              ? { ...item, pointsPerUnit: Number(event.target.value) }
+                              ? {
+                                  ...item,
+                                  pointsPerUnit: Number(event.target.value),
+                                }
                               : item,
                           ),
                         )
@@ -654,7 +709,10 @@ export function BusinessModulePage({
 
           <section className="points-card sales-card">
             <header>
-              <div><span>销售事实</span><h2>养老产品销售登记</h2></div>
+              <div>
+                <span>销售事实</span>
+                <h2>养老产品销售登记</h2>
+              </div>
             </header>
             <form
               className="sales-entry-form"
@@ -666,7 +724,9 @@ export function BusinessModulePage({
                     staffId: form.get("staffId"),
                     itemName: form.get("itemName"),
                     quantity: Number(form.get("quantity")),
-                    amountCents: Math.round(Number(form.get("amountYuan")) * 100),
+                    amountCents: Math.round(
+                      Number(form.get("amountYuan")) * 100,
+                    ),
                     soldAt: form.get("soldAt"),
                   },
                   "销售记录已登记，确认后才会进入积分计算。",
@@ -676,7 +736,9 @@ export function BusinessModulePage({
               <label>
                 <span>销售员工</span>
                 <select name="staffId" required defaultValue="">
-                  <option value="" disabled>请选择员工</option>
+                  <option value="" disabled>
+                    请选择员工
+                  </option>
                   {data.staff.map((staff) => (
                     <option value={String(staff.id)} key={String(staff.id)}>
                       {String(staff.name)}
@@ -687,7 +749,12 @@ export function BusinessModulePage({
               <Field label="产品或项目" name="itemName" />
               <Field label="数量" name="quantity" type="number" value="1" />
               <Field label="销售金额（元）" name="amountYuan" type="number" />
-              <Field label="销售日期" name="soldAt" type="date" value={`${performanceMonth}-09`} />
+              <Field
+                label="销售日期"
+                name="soldAt"
+                type="date"
+                value={`${performanceMonth}-09`}
+              />
               <Submit busy={busy} label="登记待确认" />
             </form>
             <div className="sales-record-list">
@@ -696,32 +763,42 @@ export function BusinessModulePage({
                   <div>
                     <strong>{String(sale.itemName)}</strong>
                     <span>
-                      {String(sale.staffName)} · {String(sale.quantity)}件 · {formatMoney(sale.amountCents)} · {String(sale.soldAt)}
+                      {String(sale.staffName)} · {String(sale.quantity)}件 ·{" "}
+                      {formatMoney(sale.amountCents)} · {String(sale.soldAt)}
                     </span>
                   </div>
                   <mark>
                     {sale.status === "PENDING"
                       ? "待确认"
-                      : statusLabels[String(sale.status)] || String(sale.status)}
+                      : statusLabels[String(sale.status)] ||
+                        String(sale.status)}
                   </mark>
                   {sale.status === "PENDING" ? (
                     <div className="row-actions">
                       <button
                         type="button"
-                        onClick={() => void submit(
-                          `/organization/sales-records/${String(sale.id)}/action`,
-                          { action: "CONFIRM" },
-                          "销售记录已确认，将在下次绩效计算时计入。",
-                        )}
-                      >确认</button>
+                        onClick={() =>
+                          void submit(
+                            `/organization/sales-records/${String(sale.id)}/action`,
+                            { action: "CONFIRM" },
+                            "销售记录已确认，将在下次绩效计算时计入。",
+                          )
+                        }
+                      >
+                        确认
+                      </button>
                       <button
                         type="button"
-                        onClick={() => void submit(
-                          `/organization/sales-records/${String(sale.id)}/action`,
-                          { action: "CANCEL" },
-                          "销售记录已取消，不会计入绩效。",
-                        )}
-                      >取消</button>
+                        onClick={() =>
+                          void submit(
+                            `/organization/sales-records/${String(sale.id)}/action`,
+                            { action: "CANCEL" },
+                            "销售记录已取消，不会计入绩效。",
+                          )
+                        }
+                      >
+                        取消
+                      </button>
                     </div>
                   ) : null}
                 </article>
@@ -732,7 +809,10 @@ export function BusinessModulePage({
 
         <section className="points-card statements-card">
           <header>
-            <div><span>月度核算</span><h2>员工绩效单</h2></div>
+            <div>
+              <span>月度核算</span>
+              <h2>员工绩效单</h2>
+            </div>
             <div className="statement-actions">
               <input
                 type="month"
@@ -740,7 +820,10 @@ export function BusinessModulePage({
                 value={performanceMonth}
                 onChange={(event) => setPerformanceMonth(event.target.value)}
               />
-              <button type="button" onClick={() => void loadPerformanceMonth(performanceMonth)}>
+              <button
+                type="button"
+                onClick={() => void loadPerformanceMonth(performanceMonth)}
+              >
                 查询
               </button>
               <button
@@ -758,9 +841,13 @@ export function BusinessModulePage({
                     setPerformanceStatements(
                       result as BusinessData["performanceStatements"],
                     );
-                    notify("绩效单已按当前月份适用的方案自动计算，可展开核对明细。 ");
+                    notify(
+                      "绩效单已按当前月份适用的方案自动计算，可展开核对明细。 ",
+                    );
                   } catch (error) {
-                    fail(error instanceof Error ? error.message : "绩效计算失败");
+                    fail(
+                      error instanceof Error ? error.message : "绩效计算失败",
+                    );
                   } finally {
                     setBusy(false);
                   }
@@ -775,32 +862,54 @@ export function BusinessModulePage({
               {performanceStatements.map((statement) => (
                 <details key={String(statement.id)}>
                   <summary>
-                    <span><strong>{String(statement.staffName)}</strong><small>{String(statement.staffRole)}</small></span>
+                    <span>
+                      <strong>{String(statement.staffName)}</strong>
+                      <small>{String(statement.staffRole)}</small>
+                    </span>
                     <span>基础 {String(statement.basePoints)} 分</span>
-                    <span>调整 {Number(statement.adjustmentPoints) > 0 ? "+" : ""}{String(statement.adjustmentPoints)} 分</span>
+                    <span>
+                      调整 {Number(statement.adjustmentPoints) > 0 ? "+" : ""}
+                      {String(statement.adjustmentPoints)} 分
+                    </span>
                     <strong>{String(statement.totalPoints)} 分</strong>
-                    <mark>{statusLabels[String(statement.status)] || String(statement.status)}</mark>
+                    <mark>
+                      {statusLabels[String(statement.status)] ||
+                        String(statement.status)}
+                    </mark>
                   </summary>
                   <div className="statement-detail">
-                    <p>采用“{String(statement.schemeName)}”第{String(statement.schemeVersion)}版，计算时间 {formatDateTime(statement.calculatedAt)}</p>
+                    <p>
+                      采用“{String(statement.schemeName)}”第
+                      {String(statement.schemeVersion)}版，计算时间{" "}
+                      {formatDateTime(statement.calculatedAt)}
+                    </p>
                     <div className="statement-lines">
-                      {(statement.lines as Array<Record<string, unknown>>).map((line) => (
-                        <div key={String(line.metricCode)}>
-                          <span>{String(line.label)}</span>
-                          <span>
-                            {String(line.units)}
-                            {line.metricCode === "SALE_AMOUNT_100"
-                              ? " × 100元"
-                              : ` ${String(line.unit)}`}
-                          </span>
-                          <span>× {String(line.pointsPerUnit)} 分</span>
-                          <strong>{String(line.points)} 分</strong>
-                        </div>
-                      ))}
+                      {(statement.lines as Array<Record<string, unknown>>).map(
+                        (line) => (
+                          <div key={String(line.metricCode)}>
+                            <span>{String(line.label)}</span>
+                            <span>
+                              {String(line.units)}
+                              {line.metricCode === "SALE_AMOUNT_100"
+                                ? " × 100元"
+                                : ` ${String(line.unit)}`}
+                            </span>
+                            <span>× {String(line.pointsPerUnit)} 分</span>
+                            <strong>{String(line.points)} 分</strong>
+                          </div>
+                        ),
+                      )}
                     </div>
-                    {(statement.adjustments as Array<Record<string, unknown>>).map((adjustment) => (
-                      <p className="adjustment-record" key={String(adjustment.id)}>
-                        调整 {Number(adjustment.points) > 0 ? "+" : ""}{String(adjustment.points)} 分：{String(adjustment.reason)}
+                    {(
+                      statement.adjustments as Array<Record<string, unknown>>
+                    ).map((adjustment) => (
+                      <p
+                        className="adjustment-record"
+                        key={String(adjustment.id)}
+                      >
+                        调整 {Number(adjustment.points) > 0 ? "+" : ""}
+                        {String(adjustment.points)} 分：
+                        {String(adjustment.reason)}
                       </p>
                     ))}
                     {statement.status === "DRAFT" ? (
@@ -813,12 +922,21 @@ export function BusinessModulePage({
                             try {
                               await api(
                                 `/organization/performance-statements/${String(statement.id)}/adjust`,
-                                { points: Number(form.get("points")), reason: form.get("reason") },
+                                {
+                                  points: Number(form.get("points")),
+                                  reason: form.get("reason"),
+                                },
                               );
                               await loadPerformanceMonth(performanceMonth);
-                              notify("绩效调整已记录，原始业务数据没有被修改。 ");
+                              notify(
+                                "绩效调整已记录，原始业务数据没有被修改。 ",
+                              );
                             } catch (error) {
-                              fail(error instanceof Error ? error.message : "绩效调整失败");
+                              fail(
+                                error instanceof Error
+                                  ? error.message
+                                  : "绩效调整失败",
+                              );
                             } finally {
                               setBusy(false);
                             }
@@ -842,12 +960,18 @@ export function BusinessModulePage({
                               await loadPerformanceMonth(performanceMonth);
                               notify("绩效单已确认并锁定。 ");
                             } catch (error) {
-                              fail(error instanceof Error ? error.message : "绩效单确认失败");
+                              fail(
+                                error instanceof Error
+                                  ? error.message
+                                  : "绩效单确认失败",
+                              );
                             } finally {
                               setBusy(false);
                             }
                           }}
-                        >确认并锁定</button>
+                        >
+                          确认并锁定
+                        </button>
                       </div>
                     ) : null}
                   </div>
@@ -882,7 +1006,9 @@ export function BusinessModulePage({
                 />
               ))
             ) : (
-              <p className="business-empty">尚未建立持续服务关系，可从右侧开始建立。</p>
+              <p className="business-empty">
+                尚未建立持续服务关系，可从右侧开始建立。
+              </p>
             )}
           </DataPanel>
           <Editor title="建立服务关系">
@@ -907,16 +1033,24 @@ export function BusinessModulePage({
                 <span>服务形态</span>
                 <select name="mode">
                   {Object.entries(modeLabels).map(([value, label]) => (
-                    <option value={value} key={value}>{label}</option>
+                    <option value={value} key={value}>
+                      {label}
+                    </option>
                   ))}
                 </select>
               </label>
               <Field label="开始日期" name="startDate" type="date" />
-              <Field label="服务频次" name="frequency" placeholder="例如：每周一次" />
+              <Field
+                label="服务频次"
+                name="frequency"
+                placeholder="例如：每周一次"
+              />
               <label>
                 <span>负责人</span>
                 <select name="responsible" required defaultValue="">
-                  <option value="" disabled>请选择负责人</option>
+                  <option value="" disabled>
+                    请选择负责人
+                  </option>
                   {data.staff.map((row) => (
                     <option value={String(row.name)} key={String(row.id)}>
                       {String(row.name)} · {String(row.role)}
@@ -949,14 +1083,18 @@ export function BusinessModulePage({
                 />
               ))
             ) : (
-              <p className="business-empty">当前没有服务任务，可从右侧直接派发。</p>
+              <p className="business-empty">
+                当前没有服务任务，可从右侧直接派发。
+              </p>
             )}
           </DataPanel>
           <Editor title="派发单次任务">
             <form
               onSubmit={(event) => {
                 const f = formValues(event);
-                const elder = elders.find((item) => item.displayName === f.get("elderName"));
+                const elder = elders.find(
+                  (item) => item.displayName === f.get("elderName"),
+                );
                 const serviceItems = f.getAll("serviceItems");
                 if (!serviceItems.length) {
                   fail("请至少选择一个具体服务项目。");
@@ -985,38 +1123,63 @@ export function BusinessModulePage({
               }}
             >
               <ElderSelect elders={elders} />
-              <Field label="执行时间" name="scheduledAt" type="datetime-local" />
+              <Field
+                label="执行时间"
+                name="scheduledAt"
+                type="datetime-local"
+              />
               <fieldset className="service-catalog-picker">
                 <legend>本次服务项目</legend>
                 <p>只展开本次涉及的大类，再选择具体项目。</p>
-                {serviceCategories.filter((category) => category.enabled !== false).map((category) => {
-                  const selected = selectedServiceCategoryIds.includes(category.id);
-                  return (
-                    <section key={category.id}>
-                      <label className="category-toggle">
-                        <input
-                          type="checkbox"
-                          checked={selected}
-                          onChange={(event) => setSelectedServiceCategoryIds((current) =>
-                            event.target.checked ? [...current, category.id] : current.filter((id) => id !== category.id),
-                          )}
-                        />
-                        <strong>{category.label}</strong>
-                        <small>{category.items.filter((item) => item.enabled !== false).length} 项</small>
-                      </label>
-                      {selected ? (
-                        <div className="service-item-options">
-                          {category.items.filter((item) => item.enabled !== false).map((item) => (
-                            <label key={item.id}>
-                              <input type="checkbox" name="serviceItems" value={`${category.label}·${item.label}`} />
-                              <span>{item.label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      ) : null}
-                    </section>
-                  );
-                })}
+                {serviceCategories
+                  .filter((category) => category.enabled !== false)
+                  .map((category) => {
+                    const selected = selectedServiceCategoryIds.includes(
+                      category.id,
+                    );
+                    return (
+                      <section key={category.id}>
+                        <label className="category-toggle">
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={(event) =>
+                              setSelectedServiceCategoryIds((current) =>
+                                event.target.checked
+                                  ? [...current, category.id]
+                                  : current.filter((id) => id !== category.id),
+                              )
+                            }
+                          />
+                          <strong>{category.label}</strong>
+                          <small>
+                            {
+                              category.items.filter(
+                                (item) => item.enabled !== false,
+                              ).length
+                            }{" "}
+                            项
+                          </small>
+                        </label>
+                        {selected ? (
+                          <div className="service-item-options">
+                            {category.items
+                              .filter((item) => item.enabled !== false)
+                              .map((item) => (
+                                <label key={item.id}>
+                                  <input
+                                    type="checkbox"
+                                    name="serviceItems"
+                                    value={`${category.label}·${item.label}`}
+                                  />
+                                  <span>{item.label}</span>
+                                </label>
+                              ))}
+                          </div>
+                        ) : null}
+                      </section>
+                    );
+                  })}
               </fieldset>
               <label>
                 <span>负责人</span>
@@ -1024,11 +1187,17 @@ export function BusinessModulePage({
                   name="responsibleId"
                   required
                   value={selectedResponsibleId}
-                  onChange={(event) => setSelectedResponsibleId(event.target.value)}
+                  onChange={(event) =>
+                    setSelectedResponsibleId(event.target.value)
+                  }
                 >
-                  <option value="" disabled>请选择负责人</option>
+                  <option value="" disabled>
+                    请选择负责人
+                  </option>
                   {data.staff.map((row) => (
-                    <option value={String(row.id)} key={String(row.id)}>{String(row.name)}</option>
+                    <option value={String(row.id)} key={String(row.id)}>
+                      {String(row.name)}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -1044,7 +1213,9 @@ export function BusinessModulePage({
                         value={String(row.id)}
                         disabled={String(row.id) === selectedResponsibleId}
                       />
-                      <span>{String(row.name)} · {String(row.role)}</span>
+                      <span>
+                        {String(row.name)} · {String(row.role)}
+                      </span>
                     </label>
                   ))}
                 </div>
@@ -1068,7 +1239,10 @@ export function BusinessModulePage({
       })),
     }));
     return (
-      <Page title="服务项目" lead="维护门店可提供的服务大类和具体项目；这里不配置员工填写字段。">
+      <Page
+        title="服务项目"
+        lead="维护门店可提供的服务大类和具体项目；这里不配置员工填写字段。"
+      >
         <section className="catalog-editor">
           <header>
             <div>
@@ -1077,10 +1251,18 @@ export function BusinessModulePage({
             </div>
             <button
               type="button"
-              onClick={() => setCatalogDraft((current) => [
-                ...current,
-                { id: `category-${Date.now()}`, label: "新服务大类", enabled: true, order: current.length, items: [] },
-              ])}
+              onClick={() =>
+                setCatalogDraft((current) => [
+                  ...current,
+                  {
+                    id: `category-${Date.now()}`,
+                    label: "新服务大类",
+                    enabled: true,
+                    order: current.length,
+                    items: [],
+                  },
+                ])
+              }
             >
               <Plus size={16} /> 新增大类
             </button>
@@ -1091,26 +1273,182 @@ export function BusinessModulePage({
                 <input
                   aria-label="服务大类名称"
                   value={category.label}
-                  onChange={(event) => setCatalogDraft((current) => current.map((item) =>
-                    item.id === category.id ? { ...item, label: event.target.value } : item,
-                  ))}
+                  onChange={(event) =>
+                    setCatalogDraft((current) =>
+                      current.map((item) =>
+                        item.id === category.id
+                          ? { ...item, label: event.target.value }
+                          : item,
+                      ),
+                    )
+                  }
                 />
-                <label><input type="checkbox" checked={category.enabled} onChange={(event) => setCatalogDraft((current) => current.map((item) => item.id === category.id ? { ...item, enabled: event.target.checked } : item))} /> 启用</label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={category.enabled}
+                    onChange={(event) =>
+                      setCatalogDraft((current) =>
+                        current.map((item) =>
+                          item.id === category.id
+                            ? { ...item, enabled: event.target.checked }
+                            : item,
+                        ),
+                      )
+                    }
+                  />{" "}
+                  启用
+                </label>
                 <div className="catalog-order-actions">
-                  <button aria-label={`上移${category.label}`} type="button" disabled={categoryIndex === 0} onClick={() => setCatalogDraft((current) => moveEntry(current, categoryIndex, categoryIndex - 1))}><ArrowUp size={15} /></button>
-                  <button aria-label={`下移${category.label}`} type="button" disabled={categoryIndex === normalized.length - 1} onClick={() => setCatalogDraft((current) => moveEntry(current, categoryIndex, categoryIndex + 1))}><ArrowDown size={15} /></button>
+                  <button
+                    aria-label={`上移${category.label}`}
+                    type="button"
+                    disabled={categoryIndex === 0}
+                    onClick={() =>
+                      setCatalogDraft((current) =>
+                        moveEntry(current, categoryIndex, categoryIndex - 1),
+                      )
+                    }
+                  >
+                    <ArrowUp size={15} />
+                  </button>
+                  <button
+                    aria-label={`下移${category.label}`}
+                    type="button"
+                    disabled={categoryIndex === normalized.length - 1}
+                    onClick={() =>
+                      setCatalogDraft((current) =>
+                        moveEntry(current, categoryIndex, categoryIndex + 1),
+                      )
+                    }
+                  >
+                    <ArrowDown size={15} />
+                  </button>
                 </div>
-                <button type="button" onClick={() => setCatalogDraft((current) => current.map((item) => item.id === category.id ? { ...item, items: [...item.items, { id: `item-${Date.now()}`, label: "新服务项目", enabled: true, order: item.items.length }] } : item))}>新增项目</button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCatalogDraft((current) =>
+                      current.map((item) =>
+                        item.id === category.id
+                          ? {
+                              ...item,
+                              items: [
+                                ...item.items,
+                                {
+                                  id: `item-${Date.now()}`,
+                                  label: "新服务项目",
+                                  enabled: true,
+                                  order: item.items.length,
+                                },
+                              ],
+                            }
+                          : item,
+                      ),
+                    )
+                  }
+                >
+                  新增项目
+                </button>
               </div>
               <div className="catalog-items">
                 {category.items.map((item, itemIndex) => (
                   <div key={item.id}>
-                    <span>{categoryIndex + 1}.{itemIndex + 1}</span>
-                    <input value={item.label} onChange={(event) => setCatalogDraft((current) => current.map((entry) => entry.id === category.id ? { ...entry, items: entry.items.map((child) => child.id === item.id ? { ...child, label: event.target.value } : child) } : entry))} />
-                    <label><input type="checkbox" checked={item.enabled} onChange={(event) => setCatalogDraft((current) => current.map((entry) => entry.id === category.id ? { ...entry, items: entry.items.map((child) => child.id === item.id ? { ...child, enabled: event.target.checked } : child) } : entry))} /> 启用</label>
+                    <span>
+                      {categoryIndex + 1}.{itemIndex + 1}
+                    </span>
+                    <input
+                      value={item.label}
+                      onChange={(event) =>
+                        setCatalogDraft((current) =>
+                          current.map((entry) =>
+                            entry.id === category.id
+                              ? {
+                                  ...entry,
+                                  items: entry.items.map((child) =>
+                                    child.id === item.id
+                                      ? { ...child, label: event.target.value }
+                                      : child,
+                                  ),
+                                }
+                              : entry,
+                          ),
+                        )
+                      }
+                    />
+                    <label>
+                      <input
+                        type="checkbox"
+                        checked={item.enabled}
+                        onChange={(event) =>
+                          setCatalogDraft((current) =>
+                            current.map((entry) =>
+                              entry.id === category.id
+                                ? {
+                                    ...entry,
+                                    items: entry.items.map((child) =>
+                                      child.id === item.id
+                                        ? {
+                                            ...child,
+                                            enabled: event.target.checked,
+                                          }
+                                        : child,
+                                    ),
+                                  }
+                                : entry,
+                            ),
+                          )
+                        }
+                      />{" "}
+                      启用
+                    </label>
                     <div className="catalog-order-actions">
-                      <button aria-label={`上移${item.label}`} type="button" disabled={itemIndex === 0} onClick={() => setCatalogDraft((current) => current.map((entry) => entry.id === category.id ? { ...entry, items: moveEntry(entry.items, itemIndex, itemIndex - 1) } : entry))}><ArrowUp size={14} /></button>
-                      <button aria-label={`下移${item.label}`} type="button" disabled={itemIndex === category.items.length - 1} onClick={() => setCatalogDraft((current) => current.map((entry) => entry.id === category.id ? { ...entry, items: moveEntry(entry.items, itemIndex, itemIndex + 1) } : entry))}><ArrowDown size={14} /></button>
+                      <button
+                        aria-label={`上移${item.label}`}
+                        type="button"
+                        disabled={itemIndex === 0}
+                        onClick={() =>
+                          setCatalogDraft((current) =>
+                            current.map((entry) =>
+                              entry.id === category.id
+                                ? {
+                                    ...entry,
+                                    items: moveEntry(
+                                      entry.items,
+                                      itemIndex,
+                                      itemIndex - 1,
+                                    ),
+                                  }
+                                : entry,
+                            ),
+                          )
+                        }
+                      >
+                        <ArrowUp size={14} />
+                      </button>
+                      <button
+                        aria-label={`下移${item.label}`}
+                        type="button"
+                        disabled={itemIndex === category.items.length - 1}
+                        onClick={() =>
+                          setCatalogDraft((current) =>
+                            current.map((entry) =>
+                              entry.id === category.id
+                                ? {
+                                    ...entry,
+                                    items: moveEntry(
+                                      entry.items,
+                                      itemIndex,
+                                      itemIndex + 1,
+                                    ),
+                                  }
+                                : entry,
+                            ),
+                          )
+                        }
+                      >
+                        <ArrowDown size={14} />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -1121,15 +1459,23 @@ export function BusinessModulePage({
             className="primary-action"
             type="button"
             disabled={busy}
-            onClick={() => void submit(
-              "/organization/service-workspace-config",
-              {
-                rules: serviceRules,
-                categories: normalized,
-                enabledServiceItemIds: normalized.flatMap((category) => category.enabled ? category.items.filter((item) => item.enabled).map((item) => item.id) : []),
-              },
-              "服务项目目录已保存，新任务将使用最新目录。",
-            )}
+            onClick={() =>
+              void submit(
+                "/organization/service-workspace-config",
+                {
+                  rules: serviceRules,
+                  categories: normalized,
+                  enabledServiceItemIds: normalized.flatMap((category) =>
+                    category.enabled
+                      ? category.items
+                          .filter((item) => item.enabled)
+                          .map((item) => item.id)
+                      : [],
+                  ),
+                },
+                "服务项目目录已保存，新任务将使用最新目录。",
+              )
+            }
           >
             {busy ? "正在保存…" : "保存项目目录"}
           </button>
@@ -1558,23 +1904,57 @@ export function BusinessModulePage({
               title={`${row.ingredient} · ${row.batchNo}`}
               meta={`${row.serviceDate} · ${row.supplier} · ${row.quantity || "数量未填"} · 影像材料 ${Array.isArray(row.evidenceIds) ? row.evidenceIds.length : 0} 份${row.voiceMediaId ? " · 有语音备注" : ""}`}
               status={String(row.status)}
-              detail={(
+              detail={
                 <div className="row-media-review">
-                  {Array.isArray(row.evidence) ? row.evidence.map((item) => (
-                    <a key={String(item.id)} href={String(item.dataUrl)} target="_blank" rel="noreferrer" title="打开原图">
-                      <img src={String(item.dataUrl)} alt={String(item.fileName || "食品票据或批次照片")} />
-                    </a>
-                  )) : null}
-                  {(row.voice as Record<string, unknown> | undefined)?.dataUrl ? (
-                    <audio controls preload="none" src={String((row.voice as Record<string, unknown>).dataUrl)} />
+                  {Array.isArray(row.evidence)
+                    ? row.evidence.map((item) => (
+                        <a
+                          key={String(item.id)}
+                          href={String(item.dataUrl)}
+                          target="_blank"
+                          rel="noreferrer"
+                          title="打开原图"
+                        >
+                          <img
+                            src={String(item.dataUrl)}
+                            alt={String(item.fileName || "食品票据或批次照片")}
+                          />
+                        </a>
+                      ))
+                    : null}
+                  {(row.voice as Record<string, unknown> | undefined)
+                    ?.dataUrl ? (
+                    <audio
+                      controls
+                      preload="none"
+                      src={String(
+                        (row.voice as Record<string, unknown>).dataUrl,
+                      )}
+                    />
                   ) : null}
                 </div>
-              )}
-              actions={String(row.status) === "SUBMITTED" ? [["确认合规", "VERIFY"], ["退回修改", "RETURN"]] : []}
+              }
+              actions={
+                String(row.status) === "SUBMITTED"
+                  ? [
+                      ["确认合规", "VERIFY"],
+                      ["退回修改", "RETURN"],
+                    ]
+                  : []
+              }
               onAction={(action) => {
-                const reason = action === "RETURN" ? window.prompt("请填写需要修改的内容") || "" : "";
+                const reason =
+                  action === "RETURN"
+                    ? window.prompt("请填写需要修改的内容") || ""
+                    : "";
                 if (action === "RETURN" && !reason.trim()) return;
-                void submit(`/organization/food-traces/${row.id}/action`, { action, reason }, action === "VERIFY" ? "该流转记录已确认合规。" : "已退回给餐饮人员修改。");
+                void submit(
+                  `/organization/food-traces/${row.id}/action`,
+                  { action, reason },
+                  action === "VERIFY"
+                    ? "该流转记录已确认合规。"
+                    : "已退回给餐饮人员修改。",
+                );
               }}
             />
           ))}
@@ -1665,16 +2045,39 @@ export function BusinessModulePage({
           <fieldset className="settings-options">
             <legend>员工端应用</legend>
             <label className="check-line">
-              <input type="checkbox" name="attendanceEnabled" defaultChecked={Boolean(data.settings.attendanceEnabled)} />
-              <span><strong>上下班考勤</strong><small>独立记录员工上下班，不与服务阶段记录混用。</small></span>
+              <input
+                type="checkbox"
+                name="attendanceEnabled"
+                defaultChecked={Boolean(data.settings.attendanceEnabled)}
+              />
+              <span>
+                <strong>上下班考勤</strong>
+                <small>独立记录员工上下班，不与服务阶段记录混用。</small>
+              </span>
             </label>
             <label className="check-line">
-              <input type="checkbox" name="foodTraceEnabled" defaultChecked={Boolean(data.settings.foodTraceEnabled)} />
-              <span><strong>食品追溯采集</strong><small>只向餐饮部门人员开放拍照和语音登记入口。</small></span>
+              <input
+                type="checkbox"
+                name="foodTraceEnabled"
+                defaultChecked={Boolean(data.settings.foodTraceEnabled)}
+              />
+              <span>
+                <strong>食品追溯采集</strong>
+                <small>只向餐饮部门人员开放拍照和语音登记入口。</small>
+              </span>
             </label>
             <label className="check-line">
-              <input type="checkbox" name="customerFeedbackEnabled" defaultChecked={Boolean(data.settings.customerFeedbackEnabled)} />
-              <span><strong>客户反馈</strong><small>具体材料是否必填，由服务表单中的客户反馈组件决定。</small></span>
+              <input
+                type="checkbox"
+                name="customerFeedbackEnabled"
+                defaultChecked={Boolean(data.settings.customerFeedbackEnabled)}
+              />
+              <span>
+                <strong>客户反馈</strong>
+                <small>
+                  具体材料是否必填，由服务表单中的客户反馈组件决定。
+                </small>
+              </span>
             </label>
           </fieldset>
           <Field
@@ -1702,7 +2105,155 @@ export function BusinessModulePage({
           <Submit busy={busy} />
         </form>
       </Editor>
+      <Editor title="部门工作应用">
+        <p className="editor-lead">
+          每个部门分别决定是否使用上下班考勤、食品追溯和客户反馈。员工属于多个部门时，只显示已授权的应用；考勤采用员工部门列表中第一条已启用规则。
+        </p>
+        <div className="department-policy-list">
+          {data.departmentPolicies.map((policy) => (
+            <DepartmentPolicyForm
+              key={String(policy.departmentName)}
+              policy={policy}
+              busy={busy}
+              save={(values) =>
+                submit(
+                  `/organization/department-app-policies/${encodeURIComponent(String(policy.departmentName))}`,
+                  values,
+                  `${String(policy.departmentName)}的工作应用规则已保存。`,
+                )
+              }
+            />
+          ))}
+        </div>
+      </Editor>
     </Page>
+  );
+}
+
+function DepartmentPolicyForm({
+  policy,
+  busy,
+  save,
+}: {
+  policy: Record<string, unknown>;
+  busy: boolean;
+  save: (values: Record<string, unknown>) => Promise<void>;
+}) {
+  const [attendanceEnabled, setAttendanceEnabled] = useState(
+    Boolean(policy.attendanceEnabled),
+  );
+  return (
+    <form
+      className="department-policy-row"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const values = new FormData(event.currentTarget);
+        void save({
+          attendanceEnabled,
+          attendanceMode: attendanceEnabled
+            ? String(values.get("attendanceMode") || "FIXED_SHIFT")
+            : "NONE",
+          startTime: attendanceEnabled
+            ? String(values.get("startTime") || "09:00")
+            : "",
+          endTime: attendanceEnabled
+            ? String(values.get("endTime") || "18:00")
+            : "",
+          locationRadiusMeters: attendanceEnabled
+            ? Number(values.get("locationRadiusMeters") || 300)
+            : 0,
+          foodTraceEnabled: values.has("foodTraceEnabled"),
+          customerFeedbackEnabled: values.has("customerFeedbackEnabled"),
+        });
+      }}
+    >
+      <div className="department-policy-title">
+        <strong>{String(policy.departmentName)}</strong>
+        <span>{attendanceEnabled ? "启用考勤" : "不使用上下班考勤"}</span>
+      </div>
+      <div className="department-policy-grid">
+        <label className="check-line compact-check">
+          <input
+            type="checkbox"
+            name="attendanceEnabled"
+            checked={attendanceEnabled}
+            onChange={(event) =>
+              setAttendanceEnabled(event.currentTarget.checked)
+            }
+          />
+          <span>
+            <strong>上下班考勤</strong>
+          </span>
+        </label>
+        {attendanceEnabled ? (
+          <>
+            <label>
+              <span>考勤方式</span>
+              <select
+                name="attendanceMode"
+                defaultValue={String(policy.attendanceMode || "FIXED_SHIFT")}
+              >
+                <option value="FIXED_SHIFT">固定班次</option>
+                <option value="FLEXIBLE">弹性班次</option>
+              </select>
+            </label>
+            <label>
+              <span>上班时间</span>
+              <input
+                name="startTime"
+                type="time"
+                defaultValue={String(policy.startTime || "09:00")}
+              />
+            </label>
+            <label>
+              <span>下班时间</span>
+              <input
+                name="endTime"
+                type="time"
+                defaultValue={String(policy.endTime || "18:00")}
+              />
+            </label>
+            <label>
+              <span>定位范围（米）</span>
+              <input
+                name="locationRadiusMeters"
+                type="number"
+                min="50"
+                max="5000"
+                defaultValue={Number(policy.locationRadiusMeters || 300)}
+              />
+            </label>
+          </>
+        ) : (
+          <p className="department-policy-disabled">
+            该部门不显示上下班打卡入口，也不执行班次与定位规则。
+          </p>
+        )}
+        <label className="check-line compact-check">
+          <input
+            type="checkbox"
+            name="foodTraceEnabled"
+            defaultChecked={Boolean(policy.foodTraceEnabled)}
+          />
+          <span>
+            <strong>食品追溯</strong>
+          </span>
+        </label>
+        <label className="check-line compact-check">
+          <input
+            type="checkbox"
+            name="customerFeedbackEnabled"
+            defaultChecked={Boolean(policy.customerFeedbackEnabled)}
+          />
+          <span>
+            <strong>客户反馈</strong>
+          </span>
+        </label>
+      </div>
+      <button type="submit" disabled={busy}>
+        保存该部门规则
+      </button>
+    </form>
   );
 }
 
