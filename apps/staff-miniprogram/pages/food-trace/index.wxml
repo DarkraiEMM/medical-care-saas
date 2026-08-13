@@ -1,0 +1,34 @@
+<view class="page-shell">
+  <view class="section-title">
+    <text class="title">食品追溯采集</text>
+    <text class="sub">优先拍摄票据、证件或批次标签，减少手工录入</text>
+  </view>
+  <view wx:if="{{error}}" class="error-box"><text>{{error}}</text><button class="inline-retry" bindtap="retry">重新连接</button></view>
+  <view class="food-form">
+    <view wx:if="{{editingId}}" class="return-editing">
+      <text>正在修改退回记录</text>
+      <text>退回原因：{{editingReason}}</text>
+      <button bindtap="cancelEdit">取消修改</button>
+    </view>
+    <label class="field"><text>食材名称</text><input value="{{ingredient}}" data-field="ingredient" bindinput="update" placeholder="例如：土豆"/></label>
+    <label class="field"><text>数量或用途</text><input value="{{quantity}}" data-field="quantity" bindinput="update" placeholder="例如：20千克，午餐使用"/></label>
+    <label class="field"><text>供应商</text><input value="{{supplier}}" data-field="supplier" bindinput="update" placeholder="可从票据核对后补充"/></label>
+    <label class="field"><text>批次号</text><input value="{{batchNo}}" data-field="batchNo" bindinput="update" placeholder="可从批次标签核对后补充"/></label>
+    <text class="field-heading">票据、证件或批次标签</text>
+    <view class="photo-grid">
+      <view wx:for="{{images}}" wx:key="id" class="photo-item"><image src="{{item.dataUrl}}" mode="aspectFill"/><button data-id="{{item.id}}" bindtap="removeImage">删除</button></view>
+      <button wx:if="{{images.length<4}}" class="photo-add" bindtap="chooseImage"><text>＋</text><text>拍照上传</text></button>
+    </view>
+    <button class="audio-button {{recording?'recording':''}}" bindtap="toggleRecord">{{recording?'结束录音':'录制语音备注'}}</button>
+    <text wx:if="{{voice}}" class="media-ready">语音备注已保存</text>
+    <view wx:if="{{success}}" class="success-box">{{success}}</view>
+    <button class="primary-button" loading="{{busy}}" disabled="{{busy}}" bindtap="submit">{{editingId?'重新提交修改':'提交门店复核'}}</button>
+  </view>
+  <view class="recent-list">
+    <text class="recent-title">我的最近记录</text>
+    <view wx:for="{{records}}" wx:key="id" class="recent-row">
+      <view><text>{{item.ingredient}}</text><text>{{item.serviceDate}} · {{item.quantity||'数量未填'}}</text><text wx:if="{{item.status==='RETURNED'}}" class="return-reason">退回原因：{{item.returnReason}}</text></view>
+      <view class="record-actions"><text>{{item.status==='VERIFIED'?'已复核':item.status==='RETURNED'?'待修改':'待复核'}}</text><button wx:if="{{item.status==='RETURNED'}}" data-id="{{item.id}}" bindtap="editReturned">修改</button></view>
+    </view>
+  </view>
+</view>

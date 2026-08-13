@@ -1,121 +1,40 @@
-.page-shell {
-  min-height: 100vh;
-  padding: 0 32rpx 150rpx;
-}
-.warning {
-  margin: 24rpx -32rpx 0;
-  padding: 14rpx 32rpx;
-  background: #f0dfbf;
-  color: #7b501a;
-  font-size: 22rpx;
-}
-.heading {
-  padding: 50rpx 0 34rpx;
-  border-bottom: 2rpx solid #17211b;
-}
-.date {
-  display: block;
-  color: #40634b;
-  font-size: 24rpx;
-  font-weight: 600;
-  letter-spacing: 2rpx;
-}
-.title {
-  display: block;
-  margin-top: 12rpx;
-  font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
-  font-size: 48rpx;
-  font-weight: 700;
-}
-.timeline {
-  padding-top: 12rpx;
-}
-.task-row {
-  display: flex;
-  width: 100%;
-  padding: 30rpx 0;
-  border-bottom: 2rpx solid #d0cabf;
-  border-radius: 0;
-  background: transparent;
-  text-align: left;
-  line-height: 1.4;
-}
-.task-row-active {
-  background: #ebe5d8;
-}
-.time-column {
-  position: relative;
-  width: 118rpx;
-  flex: none;
-  color: #40634b;
-  font-size: 30rpx;
-  font-weight: 700;
-}
-.timeline-dot {
-  position: absolute;
-  top: 54rpx;
-  left: 13rpx;
-  width: 14rpx;
-  height: 14rpx;
-  border: 4rpx solid #f5f1e8;
-  border-radius: 50%;
-  background: #c88732;
-  box-shadow: 0 0 0 2rpx #c88732;
-}
-.timeline-dot::after {
-  content: "";
-  position: absolute;
-  top: 16rpx;
-  left: 4rpx;
-  width: 2rpx;
-  height: 106rpx;
-  background: #b9b4aa;
-}
-.task-body {
-  min-width: 0;
-  flex: 1;
-}
-.task-topline {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20rpx;
-}
-.elder-name {
-  font-size: 34rpx;
-  font-weight: 700;
-}
-.status {
-  flex: none;
-  padding: 5rpx 12rpx;
-  background: #dfe8df;
-  color: #31513b;
-  font-size: 22rpx;
-}
-.service-items {
-  display: block;
-  margin-top: 14rpx;
-  color: #505951;
-  font-size: 27rpx;
-}
-.progress {
-  display: block;
-  margin-top: 18rpx;
-  color: #6a706a;
-  font-size: 23rpx;
-}
-.bottom-action {
-  position: fixed;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  padding: 18rpx 32rpx calc(18rpx + env(safe-area-inset-bottom));
-  border-top: 2rpx solid #c9c4b8;
-  background: rgba(245, 241, 232, 0.97);
-}
-.bottom-action button {
-  border-radius: 2rpx;
-  background: #40634b;
-  font-size: 30rpx;
-  font-weight: 700;
-}
+.task-page{padding-bottom:180rpx}
+.quick-apps{margin:24rpx 0 18rpx;padding:18rpx 20rpx 20rpx;border-left:6rpx solid #c58a2b;background:#eee4d1}
+.quick-apps-active{background:#e5d8bf}
+.quick-app-heading{display:flex;justify-content:space-between;margin-bottom:13rpx;color:#69685f;font-size:19rpx}
+.quick-app-heading-title{color:#403e37;font-size:22rpx;font-weight:700}
+.quick-app-heading-note{color:#74746b}
+.quick-app-entry{display:flex;min-height:76rpx;align-items:center;gap:18rpx;padding:14rpx 16rpx;border:2rpx solid #d2cab9;background:#fffcf6;color:#17211b;text-align:left}
+.quick-app-icon{display:flex;width:54rpx;height:54rpx;flex:none;align-items:center;justify-content:center;background:#356447;color:#fff;font-size:23rpx;font-weight:700}
+.quick-app-copy{min-width:0;flex:1}
+.quick-app-title,.quick-app-sub{display:block}
+.quick-app-title{font-size:25rpx;font-weight:700}
+.quick-app-sub{margin-top:5rpx;color:#6d746e;font-size:20rpx}
+.quick-app-chevron{width:13rpx;height:13rpx;flex:none;border-top:3rpx solid #627068;border-right:3rpx solid #627068;transform:rotate(45deg)}
+.task-overview{display:flex;gap:12rpx;margin:0 0 22rpx;padding:0 2rpx;color:#69736d;font-size:20rpx}
+.overview-item{padding-right:12rpx;border-right:2rpx solid #c8c2b7}
+.overview-item-last{border-right:0}
+.task-list{display:block;width:100%}
+.task-day-group{margin-bottom:30rpx}
+.task-day-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:11rpx;padding:0 2rpx;color:#42564a}
+.task-day-date{font-size:24rpx;font-weight:700}
+.task-day-count{color:#7a837d;font-size:19rpx}
+.task-card{display:grid;box-sizing:border-box;width:100%;min-width:0;grid-template-columns:106rpx minmax(0,1fr);margin:0 0 14rpx;border:2rpx solid #cbc4b8;border-left:7rpx solid #356447;background:#fffcf6;text-align:left}
+.task-card-active{background:#f0ece3}
+.task-time-rail{padding:25rpx 12rpx 22rpx 18rpx;border-right:2rpx solid #e0d9ce}
+.task-time,.task-kind{display:block}
+.task-time{color:#254332;font-size:29rpx;font-weight:700}
+.task-kind{margin-top:10rpx;color:#778078;font-size:18rpx;line-height:1.45}
+.task-content{min-width:0;padding:22rpx 20rpx}
+.task-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12rpx}
+.elder{min-width:0;font-family:"STSong","SimSun",serif;font-size:32rpx;font-weight:700}
+.status{flex:none;padding:5rpx 11rpx;background:#dfe9e0;color:#31513b;font-size:19rpx}
+.status-RETURNED{background:#f1dcd7;color:#8b392f}
+.status-PENDING_REVIEW{background:#f2e6cd;color:#80551d}
+.items{display:block;margin-top:9rpx;color:#3f4943;font-size:23rpx;line-height:1.5}
+.team-line{display:grid;gap:5rpx;margin-top:15rpx;color:#69736d;font-size:19rpx;line-height:1.45}
+.progress{display:flex;flex-wrap:wrap;align-items:center;gap:8rpx 13rpx;margin-top:17rpx;padding-top:14rpx;border-top:2rpx solid #e1dcd2;color:#647068;font-size:19rpx}
+.revision{margin-left:auto}
+.progress-dots{display:flex;gap:4rpx}
+.progress-dot{display:block;width:12rpx;height:12rpx;border:2rpx solid #91a096;background:transparent}
+.progress-dot.done{border-color:#356447;background:#356447}

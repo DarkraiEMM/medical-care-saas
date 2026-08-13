@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "node scripts/validate-structure.mjs",
+    "build": "tsc -p tsconfig.build.json && node scripts/validate-structure.mjs",
+    "build:watch": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

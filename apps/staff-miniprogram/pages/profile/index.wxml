@@ -1,0 +1,67 @@
+<view class="page-shell profile-page">
+  <view class="test-banner">演示环境</view>
+  <view class="section-title">
+    <text class="title">我的工作</text>
+    <text class="sub">身份信息、今日考勤与本月工作概况</text>
+  </view>
+
+  <view wx:if="{{error}}" class="error-box">
+    <text>{{error}}</text>
+    <button class="inline-retry" bindtap="retry">重新连接</button>
+  </view>
+  <view wx:if="{{loading}}" class="empty-state">正在读取工作信息…</view>
+
+  <block wx:if="{{profile}}">
+    <view class="identity-panel">
+      <view class="identity-main">
+        <text class="avatar">护</text>
+        <view class="identity-copy">
+          <text class="profile-name">{{profile.displayName}}</text>
+          <text class="profile-role">{{profile.role}} · {{profile.departmentLabel}}</text>
+        </view>
+        <text class="account-state">正常</text>
+      </view>
+      <view class="work-summary">
+        <view class="summary-item"><text class="summary-value">{{approvedTasks}}</text><text class="summary-label">本月完成</text></view>
+        <view class="summary-item"><text class="summary-value">{{serviceDays}}</text><text class="summary-label">服务天数</text></view>
+        <view class="summary-item"><text class="summary-value">{{totalPoints}}</text><text class="summary-label">当前积分</text></view>
+      </view>
+    </view>
+
+    <view class="section-heading">
+      <text class="section-heading-title">工作应用</text>
+      <text class="section-heading-note">按机构设置开放</text>
+    </view>
+    <view class="app-entry-list">
+      <navigator wx:if="{{attendanceEnabled}}" url="/pages/attendance/index" class="app-entry" hover-class="app-entry-active">
+        <text class="app-icon">勤</text>
+        <view class="app-copy"><text class="app-title">上下班考勤</text><text class="app-policy">{{attendancePolicyName}}</text><text class="app-description">{{attendanceHint}}</text></view>
+        <view class="app-chevron"></view>
+      </navigator>
+      <navigator url="/pages/performance/index" class="app-entry" hover-class="app-entry-active">
+        <text class="app-icon app-icon-performance">绩</text>
+        <view class="app-copy"><text class="app-title">我的工作与业绩</text><text class="app-policy">{{performancePolicyName}}</text><text class="app-description">{{performanceHint}}</text></view>
+        <view class="app-chevron"></view>
+      </navigator>
+      <navigator wx:if="{{foodTraceEnabled}}" url="/pages/food-trace/index" class="app-entry" hover-class="app-entry-active">
+        <text class="app-icon app-icon-food">食</text>
+        <view class="app-copy"><text class="app-title">食品追溯采集</text><text class="app-policy">餐饮岗位应用</text><text class="app-description">{{foodTraceHint}}</text></view>
+        <view class="app-chevron"></view>
+      </navigator>
+    </view>
+
+    <view class="section-heading section-heading-account"><text class="section-heading-title">任职信息</text></view>
+    <view class="info-list">
+      <view class="info-row"><text class="info-label">当前机构</text><text class="info-value">兰州试点机构</text></view>
+      <view class="info-row"><text class="info-label">所属部门</text><text class="info-value">{{profile.departmentLabel}}</text></view>
+      <view class="info-row"><text class="info-label">待处理任务</text><text class="info-value">{{pendingTasks}} 项</text></view>
+    </view>
+    <button class="identity-switch" loading="{{switchingIdentity}}" disabled="{{switchingIdentity}}" bindtap="switchDemoIdentity">切换演示岗位</button>
+
+    <view class="record-note">
+      <text class="record-note-title">账号与记录</text>
+      <text class="record-note-body">账号停用后不能继续办理机构业务，已经形成的服务记录和审计记录仍按机构规则保留。</text>
+    </view>
+    <button class="privacy-link" bindtap="showPrivacy">隐私与记录说明</button>
+  </block>
+</view>

@@ -5,6 +5,8 @@ coverage/
 .env.*
 !.env.example
 .local-data/
+.local-backups/
+.local-artifacts/
 *.log
 *.tsbuildinfo
 .DS_Store

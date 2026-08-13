@@ -25,9 +25,9 @@ interface ElderRow {
 const seedRows: Array<Omit<ElderArchiveRecord, "tenantId">> = [
   {
     id: "elder-lz-001",
-    archiveNo: "DEMO-2026-001",
-    displayName: "张奶奶（模拟）",
-    primaryContactName: "张女士（模拟）",
+    archiveNo: "LZ-2026-001",
+    displayName: "张奶奶",
+    primaryContactName: "张女士",
     primaryContactPhoneMasked: "138****1208",
     serviceMode: "PERIODIC_HOME_VISIT",
     completedRecords: 2,
@@ -37,9 +37,9 @@ const seedRows: Array<Omit<ElderArchiveRecord, "tenantId">> = [
   },
   {
     id: "elder-lz-002",
-    archiveNo: "DEMO-2026-002",
-    displayName: "李爷爷（模拟）",
-    primaryContactName: "李先生（模拟）",
+    archiveNo: "LZ-2026-002",
+    displayName: "李爷爷",
+    primaryContactName: "李先生",
     primaryContactPhoneMasked: "139****3306",
     serviceMode: "DAY_CARE",
     completedRecords: 4,
@@ -49,9 +49,9 @@ const seedRows: Array<Omit<ElderArchiveRecord, "tenantId">> = [
   },
   {
     id: "elder-lz-003",
-    archiveNo: "DEMO-2026-003",
-    displayName: "王奶奶（模拟）",
-    primaryContactName: "王女士（模拟）",
+    archiveNo: "LZ-2026-003",
+    displayName: "王奶奶",
+    primaryContactName: "王女士",
     primaryContactPhoneMasked: "136****7811",
     serviceMode: "APPOINTMENT_HOME_VISIT",
     completedRecords: 4,
@@ -119,10 +119,8 @@ export class LocalSqliteElderRepository implements ElderRepository {
       const record: ElderArchiveRecord = {
         id: randomUUID(),
         tenantId,
-        archiveNo: `DEMO-${new Date().getUTCFullYear()}-${String(sequenceRow.next_value).padStart(3, "0")}`,
-        displayName: input.displayName.includes("模拟")
-          ? input.displayName
-          : `${input.displayName}（模拟）`,
+        archiveNo: `LZ-${new Date().getUTCFullYear()}-${String(sequenceRow.next_value).padStart(3, "0")}`,
+        displayName: input.displayName,
         primaryContactName: input.primaryContactName,
         primaryContactPhoneMasked: this.maskPhone(input.primaryContactPhone),
         serviceMode: input.serviceMode,

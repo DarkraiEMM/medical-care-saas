@@ -1,35 +1,34 @@
-<view class="page-shell">
-  <view class="warning">体验版本 · 仅限虚拟数据</view>
-  <view class="heading">
-    <text class="date">{{dateLabel}}</text>
-    <text class="title">今天有 {{tasks.length}} 项服务</text>
+<view class="page-shell task-page">
+  <view class="test-banner">演示环境</view>
+  <view class="section-title">
+    <text class="title">服务任务</text>
+    <text class="sub">按日期查看安排，进入任务后完成阶段记录</text>
   </view>
 
-  <view class="timeline">
-    <button
-      wx:for="{{tasks}}"
-      wx:key="id"
-      class="task-row"
-      data-id="{{item.id}}"
-      bindtap="openTask"
-      hover-class="task-row-active"
-    >
-      <view class="time-column">
-        <text>{{item.time}}</text>
-        <view class="timeline-dot"></view>
-      </view>
-      <view class="task-body">
-        <view class="task-topline">
-          <text class="elder-name">{{item.elderName}}</text>
-          <text class="status status-{{item.status}}">{{item.status}}</text>
+  <view class="task-overview" wx:if="{{!loading && !error}}">
+    <text class="overview-item">待开始 {{taskStats.notStarted}}</text>
+    <text class="overview-item">服务中 {{taskStats.inProgress}}</text>
+    <text class="overview-item overview-item-last">待修改 {{taskStats.returned}}</text>
+  </view>
+
+  <view wx:if="{{error}}" class="error-box"><text>{{error}}</text><button class="inline-retry" bindtap="retry">重新连接</button></view>
+  <view wx:if="{{loading}}" class="empty-state">正在读取任务…</view>
+  <view wx:elif="{{!tasks.length}}" class="empty-state">当前没有分配给你的任务</view>
+  <view wx:else class="task-list">
+    <view wx:for="{{taskGroups}}" wx:for-item="group" wx:key="date" class="task-day-group">
+      <view class="task-day-heading"><text class="task-day-date">{{group.date}}</text><text class="task-day-count">{{group.tasks.length}} 项</text></view>
+      <navigator wx:for="{{group.tasks}}" wx:for-item="task" wx:key="id" url="/pages/task-detail/index?id={{task.id}}" class="task-card" hover-class="task-card-active">
+        <view class="task-time-rail"><text class="task-time">{{task.time}}</text><text class="task-kind">上门服务</text></view>
+        <view class="task-content">
+          <view class="task-head"><text class="elder">{{task.elderName}}</text><text class="status status-{{task.status}}">{{task.statusLabel}}</text></view>
+          <text class="items">{{task.serviceItemsLabel}}</text>
+          <view class="team-line"><text>负责人 {{task.responsibleName}}</text><text>协作 {{task.teamLabel}}</text></view>
+          <view class="progress">
+            <view class="progress-dots"><text class="progress-dot {{task.stageProgress >= 1 ? 'done' : ''}}"></text><text class="progress-dot {{task.stageProgress >= 2 ? 'done' : ''}}"></text><text class="progress-dot {{task.stageProgress >= 3 ? 'done' : ''}}"></text></view>
+            <text>已完成 {{task.stageProgress}} / 3 阶段</text><text class="revision">第 {{task.revision}} 版</text>
+          </view>
         </view>
-        <text class="service-items">{{item.serviceItems}}</text>
-        <text class="progress">{{item.progress}}</text>
-      </view>
-    </button>
-  </view>
-
-  <view class="bottom-action">
-    <button type="primary">登记临时服务</button>
+      </navigator>
+    </view>
   </view>
 </view>

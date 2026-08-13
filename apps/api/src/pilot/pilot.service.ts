@@ -19,9 +19,9 @@ const pilotElders: PilotElder[] = [
   {
     id: "elder-lz-001",
     tenantId: "tenant-lanzhou-pilot",
-    archiveNo: "DEMO-2026-001",
-    displayName: "张奶奶（模拟）",
-    primaryContactName: "张女士（模拟）",
+    archiveNo: "LZ-2026-001",
+    displayName: "张奶奶",
+    primaryContactName: "张女士",
     currentPeriod: {
       yearMonth: "2026-08",
       completedRecords: 2,
@@ -33,8 +33,8 @@ const pilotElders: PilotElder[] = [
     id: "elder-isolation-001",
     tenantId: "tenant-isolation-test",
     archiveNo: "ISOLATION-001",
-    displayName: "隔离测试数据",
-    primaryContactName: "不可跨租户查看",
+    displayName: "赵奶奶",
+    primaryContactName: "赵女士",
     currentPeriod: {
       yearMonth: "2026-08",
       completedRecords: 4,
