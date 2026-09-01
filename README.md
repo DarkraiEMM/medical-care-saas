@@ -59,3 +59,24 @@ API 的本地模拟身份只在 `NODE_ENV=development` 且 `AUTH_MODE=local-mock
 - 合同原件、服务证据、无水印原始影像和宣传素材严格区分。
 - 不在未获授权时宣称已接入医保或长护险生产系统。
 - 项目资产同时保留自主创业、求职展示和授权转让三种用途。
+
+## 公开展示与许可
+
+本仓库公开用于项目展示、技术评审、学习交流、求职展示及合作评估，不属于开源软件。
+浏览、Fork 或下载仓库不代表获得复制、商用、部署、二次开发或再分发授权。具体边界见
+[《医养照护 SaaS 公开展示许可》](./LICENSE)。
+
+所有页面和本地流程均使用演示数据；请勿在公开仓库、演示环境或 Issue 中提交真实老人、
+员工、合同、健康信息、服务影像、密钥或其他敏感资料。
+
+### Public showcase and license
+
+This repository is publicly viewable for project demonstration, technical review, educational
+discussion, portfolio presentation, and cooperation evaluation. It is **not open-source
+software**. Viewing, forking, or downloading the repository does not grant permission to copy,
+commercialize, deploy, modify, or redistribute the project. See the bilingual
+[Medical Care SaaS Public Showcase License](./LICENSE) for the complete terms.
+
+All pages and local workflows use demonstration data. Do not submit real elder, employee,
+contract, health, service-media, credential, or other sensitive information to this public
+repository, its demo environment, or its Issues.
